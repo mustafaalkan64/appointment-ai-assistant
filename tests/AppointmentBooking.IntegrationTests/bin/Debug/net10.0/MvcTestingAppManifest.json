@@ -1,0 +1,8 @@
+{
+  "AppointmentBooking.Api, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.Api",
+  "AppointmentBooking.Application, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.Application",
+  "AppointmentBooking.ChatApi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.ChatApi",
+  "AppointmentBooking.Domain, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.Domain",
+  "AppointmentBooking.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.Infrastructure",
+  "AppointmentBooking.McpServer, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null": "\/Users\/mustafa.alkan\/Documents\/Workspace\/Projects\/appointment-app\/src\/AppointmentBooking.McpServer"
+}

@@ -1,0 +1,11 @@
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/bin/Debug/net10.0/AppointmentBooking.Domain.deps.json
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/bin/Debug/net10.0/AppointmentBooking.Domain.dll
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/bin/Debug/net10.0/AppointmentBooking.Domain.pdb
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.AssemblyInfoInputs.cache
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.AssemblyInfo.cs
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.csproj.CoreCompileInputs.cache
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.dll
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/refint/AppointmentBooking.Domain.dll
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/AppointmentBooking.Domain.pdb
+/Users/mustafa.alkan/Documents/Workspace/Projects/appointment-app/src/AppointmentBooking.Domain/obj/Debug/net10.0/ref/AppointmentBooking.Domain.dll
