@@ -1,102 +1,102 @@
 # 🏥 AI-Powered Multi-Tenant Appointment Booking Platform
 
-> **Yüksek Eşzamanlılık (High-Concurrency)**, **Sıfır Çift Randevu Garantisi (Zero Double-Booking)** ve **Model Context Protocol (MCP)** tabanlı Yapay Zeka Ajan Entegrasyonuna sahip yeni nesil kurumsal randevu ve rezervasyon platformu.
+> **High-Concurrency**, **Zero Double-Booking Guarantee (6-Layer Defense)**, and **Model Context Protocol (MCP)** Native AI Agent Integration for enterprise appointment and scheduling operations.
 
 ---
 
-## 📑 İçindekiler
-1. [Proje Özeti ve Temel Özellikler](#-proje-özeti-ve-temel-özellikler)
-2. [Teknoloji Yığını](#-teknoloji-yığını)
-3. [Sistem Mimarisi (System Architecture)](#-sistem-mimarisi-system-architecture)
-4. [Proje ve Dizin Yapısı (Codebase Structure)](#-proje-ve-dizin-yapısı-codebase-structure)
-5. [Tasarım Kalıpları ve Mimari Prensipler](#-tasarım-kalıpları-ve-mimari-prensipler)
-6. [6-Katmanlı Concurrency Savunma Modeli (Zero Double-Booking)](#-6-katmanlı-concurrency-savunma-modeli-zero-double-booking)
-7. [Model Context Protocol (MCP) & Yapay Zeka Entegrasyonu](#-model-context-protocol-mcp--yapay-zeka-entegrasyonu)
-8. [Akış ve Sıralama Diyagramları (Mermaid Diagrams)](#-akış-ve-sıralama-diyagramları-mermaid-diagrams)
-9. [Veritabanı Şeması ve ER Diyagramı](#-veritabanı-şeması-ve-er-diyagramı)
-10. [Frontend Mimarisi ve UI/UX Tasarımı](#-frontend-mimarisi-ve-uiux-tasarımı)
-11. [Bekleme Sırası (Waiting Queue) ve Asenkron İşleyiş](#-bekleme-sırası-waiting-queue-ve-asenkron-işleyiş)
-12. [Servis ve Port Haritası](#-servis-ve-port-haritası)
-13. [Test Stratejisi ve Doğrulama Sonuçları](#-test-stratejisi-ve-doğrulama-sonuçları)
-14. [Kurulum ve Yerel Çalıştırma Kılavuzu](#-kurulum-ve-yerel-çalıştırma-kılavuzu)
+## 📑 Table of Contents
+1. [Executive Summary & Core Highlights](#-executive-summary--core-highlights)
+2. [Technology Stack](#-technology-stack)
+3. [System Architecture](#-system-architecture)
+4. [Codebase & Directory Structure](#-codebase--directory-structure)
+5. [Architectural Patterns & Design Principles](#-architectural-patterns--design-principles)
+6. [6-Layer Defense-in-Depth Concurrency Model (Zero Double-Booking)](#-6-layer-defense-in-depth-concurrency-model-zero-double-booking)
+7. [Model Context Protocol (MCP) & AI Agent Integration](#-model-context-protocol-mcp--ai-agent-integration)
+8. [Sequence & Flow Diagrams](#-sequence--flow-diagrams)
+9. [Database Schema & ER Diagram](#-database-schema--er-diagram)
+10. [Frontend Architecture & Conversational UI/UX](#-frontend-architecture--conversational-uiux)
+11. [Waiting Queue Architecture & Lease Processing](#-waiting-queue-architecture--lease-processing)
+12. [Service & Port Mapping](#-service--port-mapping)
+13. [Testing Strategy & Load Verification](#-testing-strategy--load-verification)
+14. [Getting Started & Local Development Guide](#-getting-started--local-development-guide)
 
 ---
 
-## 🎯 Proje Özeti ve Temel Özellikler
+## 🎯 Executive Summary & Core Highlights
 
-Bu platform; sağlık klinikleri, danışmanlık merkezleri, güzellik ve bakım salonları gibi randevu bazlı hizmet veren organizasyonlar için geliştirilmiş, multi-tenant (çok kiracılı), modern bir tam kapsamlı yazılım ekosistemidir.
+The **AI-Powered Appointment Booking Platform** is an enterprise-grade, distributed, multi-tenant scheduling platform built for medical clinics, wellness centers, advisory firms, and service-based organizations.
 
-### 🌟 Öne Çıkan Yetenekler:
-* **🤖 Yapay Zeka Destekli Doğal Dil ile Randevu (Conversational AI):** Müşteriler karmaşık formlar ve takvimler yerine, doğal dille sohbet ederek uygun saatleri sorgular, tek tıkla kartlar üzerinden seçim yapar ve randevularını oluşturur/iptal eder.
-* **🛡️ Sıfır Çift Randevu Garantisi (Zero Double-Booking):** Aynı randevu dilimine aynı anda gelen 500-1000 eşzamanlı istekte dahi tek bir randevunun çift yazılmasını matematiksel ve fiziksel olarak imkansız kılan **6-Kademeli Savunma Mimarisi (Defense-in-Depth)**.
-* **🔌 Model Context Protocol (MCP) Desteği:** Anthropic / OpenAI standartlarında çalışan bağımsız bir `McpServer` sunucusu ile AI modellerinin veritabanına doğrudan dokunmadan, iş kuralları ve validasyon tünellerinden geçerek araç (tool) çalıştırması.
-* **🏢 Çok Kiracılı İzolasyon (Logical Multi-Tenancy):** EF Core Global Query Filter, TenantInterceptor ve kompozit DB indeksleriyle organizasyonlar arası veri sızıntısının %100 engellenmesi.
-* **⏳ Akıllı Bekleme Sırası (FIFO Waiting Queue):** Dolu veya çekişmeli slotlarda müşterilerin mağdur edilmeyip otomatik sıraya alınması; randevu iptali veya kiralama süresi (lease) aşımında sıradaki müşteriye otomatik tahsis.
-* **⚡ Modern Next.js 16 Web Uygulaması:** Admin operasyonları ve mobil öncelikli müşteri sohbet arayüzünü tek bir tasarım sistemi altında buluşturan App Router tabanlı modern frontend.
+### 🌟 Key Capabilities:
+* **🤖 Conversational AI Booking Experience:** Customers book, reschedule, and cancel appointments using natural language chat instead of dense forms and confusing date pickers. The chat dynamically renders interactive action cards for slot selection and explicit confirmations.
+* **🛡️ Zero Double-Booking Guarantee:** A **6-Layer Defense-in-Depth Concurrency Architecture** makes overlapping reservations mathematically and physically impossible, even under flash-crowd bursts of 500–1,000 simultaneous requests per slot.
+* **🔌 Native Model Context Protocol (MCP) Server:** A dedicated `AppointmentBooking.McpServer` implementing standard JSON-RPC 2.0 / SSE transports allows LLMs (Claude, GPT, Qwen) to execute actions strictly through application business rules and concurrency locks without direct database access.
+* **🏢 Strict Logical Multi-Tenancy:** Row-level tenant isolation enforced via EF Core Global Query Filters, `TenantInterceptor`, and composite database indices ensures zero data leaks across organizations.
+* **⏳ Intelligent FIFO Waiting Queue:** High-demand or locked slots automatically route contenders to an asynchronous waiting queue with lease expirations and automated promotion upon cancellations.
+* **⚡ Modern Next.js 16 Web Application:** Built with React 19, App Router, and Tailwind CSS v4, providing both a high-density administrative portal and a mobile-first conversational customer interface.
 
 ---
 
-## 🛠️ Teknoloji Yığını
+## 🛠️ Technology Stack
 
-| Katman | Teknolojiler |
+| Layer | Technologies |
 | :--- | :--- |
 | **Backend Core** | .NET 10 (C# 14), ASP.NET Core Minimal APIs |
-| **Mimari Stiller** | Clean Architecture + Vertical Slice Architecture, CQRS, DDD |
-| **İş Mantığı & MediatR** | MediatR, FluentValidation, Pipeline Behaviors |
-| **Veri & ORM** | Entity Framework Core 10, Npgsql (PostgreSQL 16) |
-| **Dağıtık Kilit & Cache** | Redis 7, RedLock.net (Dağıtık Kilit Yöneticisi), StackExchange.Redis |
-| **Mesajlaşma & Olaylar** | RabbitMQ 3.13, Transactional Outbox / Inbox Pattern |
-| **Yapay Zeka & MCP** | Model Context Protocol (JSON-RPC 2.0 / SSE), Qwen / Ollama / OpenAI Entegrasyonu |
-| **Frontend** | Next.js 16 (App Router), React 19, TypeScript (Strict), Tailwind CSS v4 |
-| **UI Bileşenleri & State** | Radix UI, TanStack React Query v5, Lucide React, Recharts, Sonner |
-| **Gözlemlenebilirlik** | OpenTelemetry, Serilog, Structured JSON Logging |
-| **Test Altyapısı** | xUnit, FluentAssertions, WebApplicationFactory, NetArchTest |
-| **Konteynerizasyon** | Docker, Docker Compose, Multi-stage Dockerfiles |
+| **Architecture Patterns** | Clean Architecture, Vertical Slice Architecture, CQRS, Domain-Driven Design (DDD) |
+| **Mediation & Validation** | MediatR, FluentValidation, Pipeline Behaviors |
+| **Data Persistence & ORM** | Entity Framework Core 10, Npgsql (PostgreSQL 16) |
+| **Distributed Locking & Caching**| Redis 7, RedLock.net (Distributed Lock Manager), StackExchange.Redis |
+| **Messaging & Events** | RabbitMQ 3.13, Transactional Outbox & Inbox Pattern |
+| **AI Orchestration & MCP** | Model Context Protocol (JSON-RPC 2.0 / SSE), Qwen / Ollama / OpenAI Integration |
+| **Frontend Framework** | Next.js 16 (App Router), React 19, TypeScript (Strict), Tailwind CSS v4 |
+| **UI Components & State** | Radix UI, TanStack React Query v5, Lucide React, Recharts, Sonner |
+| **Observability & Diagnostics** | OpenTelemetry, Serilog, Structured JSON Logging |
+| **Automated Testing** | xUnit, FluentAssertions, WebApplicationFactory, NetArchTest.eNhancedEdition |
+| **Containerization** | Docker, Docker Compose, Multi-stage Dockerfiles |
 
 ---
 
-## 🏗️ Sistem Mimarisi (System Architecture)
+## 🏗️ System Architecture
 
-Sistem; bağımsız ölçeklenebilen API servisleri, merkezi uygulama çekirdeği (Application Core) ve zengin dış servis entegrasyonlarından oluşan modüler bir mimari üzerinde inşa edilmiştir:
+The solution decouples presentation, mediation, domain rules, and external capabilities into modular, independently scalable services:
 
 ```mermaid
 graph TD
-    subgraph Clients["Kullanıcı & İstemci Katmanı"]
-        CustomerUI["Müşteri Portalı & Mobil Web (/app/*)<br/>Next.js 16"]
-        AdminUI["Organizasyon Yönetim Paneli (/admin/*)<br/>Next.js 16"]
-        ExternalLLM["Harici AI Modelleri / LLM Ajanları<br/>(Claude, Qwen, GPT)"]
+    subgraph Clients["Client Layer"]
+        CustomerUI["Customer Mobile Web Portal (/app/*)<br/>Next.js 16 App Router"]
+        AdminUI["Organization Admin Dashboard (/admin/*)<br/>Next.js 16 App Router"]
+        ExternalLLM["External AI LLM Agents<br/>(Claude, Qwen, GPT)"]
     end
 
-    subgraph EntryAPIs["Giriş & Sunum API Servisleri"]
-        ChatAPI["AppointmentBooking.ChatApi<br/>(Port: 5111)<br/>Sohbet & Ajan Orkestratörü"]
+    subgraph EntryAPIs["Entry & Gateway APIs"]
+        ChatAPI["AppointmentBooking.ChatApi<br/>(Port: 5111)<br/>AI Conversation Orchestrator"]
         CoreAPI["AppointmentBooking.Api<br/>(Port: 5099)<br/>RESTful Minimal APIs"]
         MCPServer["AppointmentBooking.McpServer<br/>(Port: 5251)<br/>Model Context Protocol (JSON-RPC)"]
     end
 
-    subgraph CoreApplication["Uygulama ve Alan Katmanı (Application & Domain)"]
+    subgraph CoreApplication["Application & Domain Core"]
         MediatR["MediatR Pipeline<br/>(Validation, Logging, Idempotency, Tenancy)"]
         VerticalSlices["Vertical Slices (Features)<br/>Commands / Queries / Handlers"]
         DomainCore["AppointmentBooking.Domain<br/>Aggregates, Entities, ValueObjects, Events"]
     end
 
-    subgraph InfrastructureLayer["Altyapı ve Veri Katmanı (Infrastructure)"]
-        RedLockManager["RedLock.net<br/>Dağıtık Kilit Yöneticisi"]
+    subgraph InfrastructureLayer["Infrastructure & Data Access"]
+        RedLockManager["RedLock.net<br/>Distributed Lock Manager"]
         EFCore["EF Core 10 DbContext<br/>TenantInterceptor & Outbox"]
-        WorkerService["WaitingQueueWorker<br/>Lease & FIFO Background Service"]
+        WorkerService["WaitingQueueWorker<br/>FIFO & Lease Expiry Background Service"]
     end
 
-    subgraph DataStores["Veri Depoları & İletişim"]
+    subgraph DataStores["Data Stores & Messaging"]
         PostgreSQL[("PostgreSQL 16<br/>ACID & Partial Unique Indexes")]
         RedisDB[("Redis 7<br/>RedLock & Distributed Cache")]
         RabbitMQBroker[("RabbitMQ<br/>Domain Event Broker")]
     end
 
     CustomerUI -->|HTTP / REST| CoreAPI
-    CustomerUI -->|Sohbet Akışı| ChatAPI
-    AdminUI -->|Yönetim REST İstekleri| CoreAPI
+    CustomerUI -->|Chat Stream / SSE| ChatAPI
+    AdminUI -->|Admin REST Operations| CoreAPI
     ExternalLLM -->|MCP Protocol / JSON-RPC| MCPServer
 
-    ChatAPI -->|MCP İstemcisi Üzerinden| MCPServer
+    ChatAPI -->|MCP Client over HTTP/SSE| MCPServer
     CoreAPI --> MediatR
     MCPServer --> MediatR
     ChatAPI --> MediatR
@@ -115,256 +115,256 @@ graph TD
 
 ---
 
-## 📂 Proje ve Dizin Yapısı (Codebase Structure)
+## 📂 Codebase & Directory Structure
 
 ```text
 appointment-ai-assistant/
-├── AppointmentBooking.sln               # .NET Çözüm Dosyası
-├── docker-compose.yml                   # PostgreSQL, Redis, RabbitMQ ve Servis Konteynerleri
-├── Directory.Build.props                # Global C# kuralları, Nullable ve Warning konfigürasyonu
+├── AppointmentBooking.sln               # Solution configuration file
+├── docker-compose.yml                   # PostgreSQL, Redis, RabbitMQ & service containers
+├── Directory.Build.props                # Global C# compiler rules & nullable checks
 │
 ├── src/
-│   ├── AppointmentBooking.Domain/       # Saf İş Kuralları (Framework bağımsız)
+│   ├── AppointmentBooking.Domain/       # Pure Enterprise Business Rules (Zero Dependencies)
 │   │   ├── Common/                      # BaseEntity, AggregateRoot, ValueObject, IDomainEvent
 │   │   ├── Entities/                    # Organization, Customer, AppointmentSlot, Appointment, WaitingQueueEntry
 │   │   ├── ValueObjects/                # TimeRange, TimeZoneCode, PhoneNumber, Money
 │   │   ├── Enums/                       # SlotStatus, AppointmentStatus, QueueStatus
-│   │   ├── Exceptions/                  # Domain-specific typed exception sınıfları
-│   │   └── Events/                      # AppointmentCreatedDomainEvent, SlotReleasedDomainEvent vb.
+│   │   ├── Exceptions/                  # Strongly-typed domain exceptions
+│   │   └── Events/                      # AppointmentCreatedDomainEvent, SlotReleasedDomainEvent
 │   │
-│   ├── AppointmentBooking.Application/  # Dikey Özellik Dilimleri (Vertical Slice CQRS)
-│   │   ├── Common/                      # ICommand, IQuery, Behaviours (Validation, Performance, Logging)
+│   ├── AppointmentBooking.Application/  # Vertical Slice Features (CQRS with MediatR)
+│   │   ├── Common/                      # ICommand, IQuery, Pipeline Behaviors (Validation, Logging)
 │   │   ├── Interfaces/                  # IDistributedLockManager, IApplicationDbContext, ITenantContext
-│   │   └── Features/                    # Her iş yeteneği bağımsız klasörde kapsüllenir:
+│   │   └── Features/                    # Each business feature encapsulated in a vertical slice:
 │   │       ├── Organizations/           # CreateOrg, GetOrg, GetBySlug, ListOrgs
 │   │       ├── Availabilities/          # SetWeeklySchedule, GenerateSlots, ToggleSlotStatus
 │   │       ├── Appointments/            # CreateAppointment, CancelAppointment, GetCustomerAppointments
 │   │       ├── Customers/               # RegisterCustomer, GetCustomerDetails
 │   │       └── WaitingQueue/            # EnqueueRequest, GetQueueStatus, CancelQueueRequest
 │   │
-│   ├── AppointmentBooking.Infrastructure/ # Dış Dünya Adaptörleri ve Kalıcılık
-│   │   ├── Persistence/                 # ApplicationDbContext, Model Konfigürasyonları, Migrations
-│   │   ├── Interceptors/                # TenantInterceptor (Multi-tenant global filtreleme)
-│   │   ├── DistributedLock/             # RedLock.net entegrasyonu ve Fail-Closed stratejisi
-│   │   ├── BackgroundServices/          # WaitingQueueWorker (Zaman aşımı ve sıra terfi işçisi)
-│   │   └── Outbox/                      # OutboxMessageProcessor ve Event Dispatcher
+│   ├── AppointmentBooking.Infrastructure/ # Persistence, Distributed Locks & External Adapters
+│   │   ├── Persistence/                 # ApplicationDbContext, Entity Configurations, Migrations
+│   │   ├── Interceptors/                # TenantInterceptor (Multi-tenant global query filter)
+│   │   ├── DistributedLock/             # RedLock.net integration with Fail-Closed safeguards
+│   │   ├── BackgroundServices/          # WaitingQueueWorker (Lease expiration & queue promotion)
+│   │   └── Outbox/                      # OutboxMessageProcessor & event publisher
 │   │
-│   ├── AppointmentBooking.Api/          # RESTful Minimal APIs (Admin & Public İstemciler)
-│   │   ├── Endpoints/                   # IEndpoint arayüzü ile modüler endpoint tanımları
-│   │   ├── Middlewares/                 # TenantResolutionMiddleware, GlobalExceptionHandlingMiddleware
-│   │   └── Extensions/                  # ServiceCollection ve Swagger yapılandırmaları
+│   ├── AppointmentBooking.Api/          # RESTful Minimal APIs (Admin & Public Clients)
+│   │   ├── Endpoints/                   # Modular IEndpoint implementations
+│   │   ├── Middlewares/                 # TenantResolutionMiddleware, GlobalExceptionHandling
+│   │   └── Extensions/                  # Service registrations & OpenAPI/Swagger specs
 │   │
-│   ├── AppointmentBooking.McpServer/    # Model Context Protocol (MCP) Host Servisi
-│   │   ├── Tools/                       # 9 adet resmi MCP Tool tanımı ve JSON Schema eşleyicileri
-│   │   ├── Handlers/                    # JSON-RPC 2.0 isteklerini MediatR komutlarına çeviren katman
-│   │   └── Transports/                  # HTTP POST (`/mcp`) ve SSE (`/mcp/sse`) protokol taşıyıcıları
+│   ├── AppointmentBooking.McpServer/    # Model Context Protocol (MCP) Host Service
+│   │   ├── Tools/                       # 9 official MCP Tool definitions & JSON schemas
+│   │   ├── Handlers/                    # JSON-RPC 2.0 mapping to MediatR commands
+│   │   └── Transports/                  # HTTP POST (`/mcp`) & SSE (`/mcp/sse`) handlers
 │   │
-│   └── AppointmentBooking.ChatApi/      # Müşteri Sohbet ve Yapay Zeka Orkestrasyonu
-│       ├── Services/                    # LLM İstemcisi, Agent Session State Machine, Tool Caller
+│   └── AppointmentBooking.ChatApi/      # Conversational Agent Orchestrator
+│       ├── Services/                    # LLM Client, Agent Session State Machine, Tool Caller
 │       ├── Endpoints/                   # `/api/chat/messages`, `/api/chat/conversations`
-│       └── Models/                      # AgentResponseDto, Discriminated Card Payload yapıları
+│       └── Models/                      # AgentResponseDto, Discriminated Card Payloads
 │
-├── frontend/                            # Next.js 16 + React 19 + Tailwind v4 Web İstemcisi
+├── frontend/                            # Next.js 16 + React 19 + Tailwind v4 Web Client
 │   ├── src/
 │   │   ├── app/
-│   │   │   ├── (public)/                # Ana Sayfa, Organizasyon Keşif ve Tanıtım Sayfaları
-│   │   │   ├── (auth)/                  # Giriş ve Kayıt Ekranları (Customer & Admin)
-│   │   │   ├── (admin)/admin/           # Dashboard, Randevular, Takvim, Slot Üretici, Bekleme Sırası
-│   │   │   └── (customer)/app/          # Müşteri Portalı: Doğal Dil AI Chat, Randevularım, Profil
+│   │   │   ├── (public)/                # SaaS Landing Page & Organization Discovery
+│   │   │   ├── (auth)/                  # 1-Click Login & Onboarding (Customer & Admin)
+│   │   │   ├── (admin)/admin/           # Dashboard, Appointments, Calendar, Slot Generator, Queue
+│   │   │   └── (customer)/app/          # Mobile-First AI Chat Portal, My Appointments, Profile
 │   │   ├── components/
-│   │   │   ├── ui/                      # Tasarım sistemi temel bileşenleri (Button, Card, Input, Dialog...)
-│   │   │   └── chat/                    # Özel sohbet kartları (AvailableSlots, Confirmation, Success...)
-│   │   ├── lib/api/client.ts            # Tip güvenli modüler backend API istemcisi
-│   │   └── providers/                   # React Query, Dark/Light Theme, Toast Providers
-│   ├── Dockerfile                       # Multi-stage production container build
+│   │   │   ├── ui/                      # Design system primitives (Button, Card, Input, Dialog...)
+│   │   │   └── chat/                    # Action cards (AvailableSlots, Confirmation, Success...)
+│   │   ├── lib/api/client.ts            # Type-safe API client with automatic token & tenant headers
+│   │   └── providers/                   # TanStack Query, NextThemes, Sonner Toast Provider
+│   ├── Dockerfile                       # Multi-stage container deployment
 │   └── package.json
 │
 ├── tests/
-│   ├── AppointmentBooking.UnitTests/         # DDD kuralları, Slot overlap ve ValueObject birim testleri
-│   ├── AppointmentBooking.ArchitectureTests/ # Clean Architecture katman kuralları (NetArchTest)
-│   ├── AppointmentBooking.IntegrationTests/  # Gerçek DB ve Redis ile End-to-End API testleri
-│   └── AppointmentBooking.ConcurrencyTests/  # 500 Eşzamanlı istek altında Zero Double-Booking yük testleri
+│   ├── AppointmentBooking.UnitTests/         # DDD invariants, slot overlap, and ValueObject unit tests
+│   ├── AppointmentBooking.ArchitectureTests/ # Clean Architecture boundary enforcement (NetArchTest)
+│   ├── AppointmentBooking.IntegrationTests/  # Real DB & Redis end-to-end API lifecycle tests
+│   └── AppointmentBooking.ConcurrencyTests/  # 500 concurrent request stress tests (Zero Double-Booking)
 │
-└── docs/                                # Kapsamlı mimari ve teknik karar belgeleri (ADR)
+└── docs/                                # Architecture Decision Records (ADRs) & technical specs
 ```
 
 ---
 
-## 💎 Tasarım Kalıpları ve Mimari Prensipler
+## 💎 Architectural Patterns & Design Principles
 
-### 1. Clean Architecture + Vertical Slice Architecture
-Geleneksel katmanlı mimarilerde yaşanan "özelliklerin katmanlar arasına dağılması ve spagetti bağımlılıklar" problemi, **Vertical Slice (Dikey Dilim)** yaklaşımı ile çözülmüştür:
-* Her bir iş özelliği (`CreateAppointment`, `GenerateSlots`, vb.) kendi klasöründe kendi `Command`, `Handler`, `Validator`, `Response` ve `Endpoint` bileşenlerini barındırır.
-* Katmanlar arası bağımlılık kuralı: `Domain` sıfır dış kütüphaneye bağımlıdır. `Application` yalnızca `Domain`'e bağımlıdır. Dış adaptörler (`Infrastructure`, `Api`, `McpServer`) `Application` soyutlamalarını implemente eder.
+### 1. Clean Architecture Combined with Vertical Slice Architecture
+Instead of scattering business logic across bloated controller, service, and repository layers, each feature is organized as a self-contained **Vertical Slice**:
+* A feature folder (`Features/Appointments/CreateAppointment`) encapsulates its own `Command`, `Handler`, `Validator`, `Response DTO`, and `Endpoint mapping`.
+* **Layer Dependency Rule:** `Domain` has zero third-party dependencies. `Application` references only `Domain`. Adapters (`Infrastructure`, `Api`, `McpServer`) implement abstractions defined in `Application`.
 
 ### 2. Domain-Driven Design (DDD)
-* **Aggregate Root:** `AppointmentSlot` ve `Appointment` birer Aggregate Root olup kendi iç tutarlılık kurallarını (invariants) korur.
-* **Value Objects:** `TimeRange`, `PhoneNumber`, `Money` nesneleri değişmez (immutable) olarak modellenmiştir; geçersiz saat aralıkları nesne oluşturulurken engellenir.
-* **Domain Events:** Randevu oluşturulduğunda veya iptal edildiğinde alan olayları fırlatılarak Transactional Outbox üzerinden asenkron abonelere aktarılır.
+* **Aggregate Roots:** `AppointmentSlot` and `Appointment` maintain strict consistency boundaries and enforce all state transition invariants internally.
+* **Value Objects:** `TimeRange`, `PhoneNumber`, and `Money` are immutable; invalid date ranges or misformatted phone numbers are caught at instantiation.
+* **Domain Events:** State mutations trigger events (`AppointmentCreatedDomainEvent`, `SlotReleasedDomainEvent`) committed within the same unit of work via the Transactional Outbox pattern.
 
-### 3. Pipeline Behaviors (Cross-Cutting Concerns)
-MediatR üzerinden akan her istek otomatik olarak şu ardışık boru hattından geçer:
-1. `TenantResolutionBehavior`: İstek sahibinin organizasyon yetkisini doğrular.
-2. `ValidationBehavior`: FluentValidation ile giriş verilerini doğrular; hata varsa Handler'a girmeden `400 Bad Request` döner.
-3. `IdempotencyBehavior`: İstek başlığındaki `IdempotencyKey` veritabanında daha önce işlenmişse, sonucu doğrudan cache/DB'den döndürür.
-4. `LoggingAndPerformanceBehavior`: 500ms'yi aşan işlemleri otomatik uyarır ve OpenTelemetry izi (trace) oluşturur.
+### 3. MediatR Pipeline Behaviors
+All incoming requests flow through an automated chain of cross-cutting behaviors:
+1. `TenantResolutionBehavior`: Verifies tenant membership and sets active execution context.
+2. `ValidationBehavior`: Executes FluentValidation rules, failing fast with `400 Bad Request` prior to reaching handlers.
+3. `IdempotencyBehavior`: Intercepts client `IdempotencyKey` headers to prevent duplicate executions from network retries.
+4. `LoggingAndPerformanceBehavior`: Automatically profiles execution times and logs warnings for requests exceeding 500ms.
 
 ### 4. Transactional Outbox Pattern
-Veritabanı transaction'ı commit edilirken alan olayları aynı ACID sınırları içinde `OutboxMessages` tablosuna yazılır. Ayrı bir arka plan işçisi bu mesajları RabbitMQ'ya iletir. Böylece veritabanı yazımı ile mesaj kuyruğu arasındaki "Dual-Write" tutarsızlığı önlenir.
+Domain events are written to an `OutboxMessages` database table within the same atomic database transaction as the business entity changes. A background processor reliably dispatches messages to RabbitMQ, eliminating Dual-Write inconsistency risks.
 
 ---
 
-## 🛡️ 6-Katmanlı Concurrency Savunma Modeli (Zero Double-Booking)
+## 🛡️ 6-Layer Defense-in-Depth Concurrency Model (Zero Double-Booking)
 
-Sistemin en kritik sözü: **"Aynı randevu slotuna 1.000 kişi aynı milisaniyede tıklasa dahi, asla çift randevu oluşamaz."**
+The primary invariant of the platform: **"Even if 1,000 customers request the exact same appointment slot in the same millisecond, zero double-booking is guaranteed."**
 
-Bu garanti tek bir bileşene (yalnızca Redis'e veya yalnızca veritabanına) emanet edilmemiş, **6 Kademeli Derinlemesine Savunma (Defense-in-Depth)** kurulmuştur:
+A **6-Layer Defense-in-Depth Model** provides end-to-end protection against concurrency bugs, distributed network partitions, and edge-case race conditions:
 
 ```mermaid
 flowchart TD
-    Req["Eşzamanlı İstek (100 - 1000 Kullanıcı)"] --> L1
+    Req["Simultaneous Requests (100 - 1,000 Users)"] --> L1
 
-    subgraph L1_Block["Katman 1: Uygulama Sınırı"]
-        L1["Katman 1: RedLock Dağıtık Kilit (Redis)<br/>appointment:slot:{orgId}:{slotId}"]
+    subgraph L1_Block["Layer 1: Application Edge"]
+        L1["Layer 1: RedLock.net Distributed Lock (Redis)<br/>Resource: appointment:slot:{orgId}:{slotId}"]
     end
 
-    L1 -->|Kilit Alınamadı / Timeout 1.5s| L6["Katman 6: Bekleme Sırası (Waiting Queue)<br/>FIFO kuyruğuna 202 Accepted ile ekle"]
-    L1 -->|Kilit Başarıyla Alındı| L2
+    L1 -->|Lock Timeout / 1.5s Exceeded| L6["Layer 6: FIFO Waiting Queue<br/>Gracefully enqueued with 202 Accepted"]
+    L1 -->|Lock Successfully Acquired| L2
 
-    subgraph L2_Block["Katman 2: Atomik SQL Seviyesi"]
-        L2["Katman 2: Conditional Atomic SQL UPDATE<br/>UPDATE AppointmentSlots SET Status = 'Booked'<br/>WHERE Id = @Id AND Status = 'Available'"]
+    subgraph L2_Block["Layer 2: Atomic SQL Operation"]
+        L2["Layer 2: Conditional Atomic SQL UPDATE<br/>UPDATE AppointmentSlots SET Status = 'Booked'<br/>WHERE Id = @Id AND Status = 'Available'"]
     end
 
-    L2 -->|Etkilenen Satır = 0| Rollback1["İptal & Kilit Bırak (Conflict 409)"]
-    L2 -->|Etkilenen Satır = 1| L3
+    L2 -->|Affected Rows = 0| Rollback1["Rollback & Release Lock (409 Conflict)"]
+    L2 -->|Affected Rows = 1| L3
 
-    subgraph L3_Block["Katman 3: Veritabanı Motoru Fiziksel Kısıtı"]
-        L3["Katman 3: Partial Filtered Unique Index<br/>UNIQUE (SlotId) WHERE (Status != 'Cancelled')"]
+    subgraph L3_Block["Layer 3: Physical Database Constraint"]
+        L3["Layer 3: Partial Filtered Unique Index<br/>UNIQUE (SlotId) WHERE (Status != 'Cancelled')"]
     end
 
-    L3 -->|Index İhlali / DB Reject| Rollback2["Postgres Unique Constraint Rolled Back"]
-    L3 -->|Fiziksel İndeks Onaylandı| L4
+    L3 -->|Constraint Violation| Rollback2["PostgreSQL Rejects Transaction"]
+    L3 -->|Physical Index Satisfied| L4
 
-    subgraph L4_Block["Katman 4 & 5: Tutarlılık & Tekrarlama Önleme"]
-        L4["Katman 4: Optimistic Concurrency Control (OCC)<br/>PostgreSQL xmin / Version Token Doğrulama"] --> L5
-        L5["Katman 5: Idempotency Key Tablosu<br/>Tekrarlanan HTTP/Ajan İsteklerini Filtreleme"]
+    subgraph L4_Block["Layers 4 & 5: State & Idempotency"]
+        L4["Layer 4: Optimistic Concurrency Control (OCC)<br/>PostgreSQL xmin / Version Token Verification"] --> L5
+        L5["Layer 5: Idempotency Key Verification<br/>Filter duplicate client retries"]
     end
 
-    L5 --> Success["201 Created: Randevu Başarıyla Onaylandı"]
+    L5 --> Success["201 Created: Appointment Confirmed"]
 ```
 
-### Savunma Katmanlarının Ayrıntıları:
-1. **Katman 1 (RedLock.net):** Dağıtık ortamda koşan birden çok API node'u arasında kilitleme yapar. Veritabanını thread ve bağlantı tükenmesinden korur.
-2. **Katman 2 (Conditional SQL UPDATE):** Redis split-brain yaşasa veya kilit süresi dolsa dahi, `UPDATE ... WHERE Status = 'Available'` sorgusu yalnızca ilk gelen bağlantıda 1 satır etkiler; diğerleri 0 alır ve rollback olur.
-3. **Katman 3 (Database Partial Unique Index):** En uç yazılım hatalarında bile PostgreSQL veritabanı motoru `IX_Appointments_SlotId_Active` indeksi sayesinde fiziksel olarak aynı slota 2 aktif randevu kaydını diske yazmayı reddeder.
-4. **Katman 4 (Optimistic Concurrency / xmin):** Yönetici aynı anda o slotu iptal ediyor veya mesaisini güncelliyorsa çakışmayı tespit eder.
-5. **Katman 5 (Idempotency Key):** Ağ kesintisi sonucu kullanıcının veya AI modelinin aynı isteği ardı ardına 3 kez göndermesi durumunda mükerrer kayıt açılmasını engeller, mevcut randevuyu döner.
-6. **Katman 6 (Waiting Queue FIFO):** Kilidi alamayan kullanıcılar hata ekranıyla karşılaşmaz; doğrudan sıralı bekleme kuyruğuna transfer edilir.
+### Detailed Breakdown of the 6 Layers:
+1. **Layer 1: RedLock.net (Redis Distributed Lock):** Serializes competing threads across distributed nodes. Protects database connection pools from exhaustion during flash traffic.
+2. **Layer 2: Conditional Atomic SQL UPDATE:** Even during Redis partition or lease expiration, `UPDATE ... WHERE Status = 'Available'` atomically succeeds for exactly one connection; all other contenders receive 0 affected rows and rollback immediately.
+3. **Layer 3: Database Partial Filtered Unique Index:** A physical database index `CREATE UNIQUE INDEX "IX_Appointments_SlotId_Active" ON "Appointments" ("SlotId") WHERE "Status" <> 3;` guarantees that the database engine itself rejects duplicate active bookings on disk.
+4. **Layer 4: Optimistic Concurrency Control (xmin token):** Detects concurrent administrative schedule modifications or slot deactivations.
+5. **Layer 5: Idempotency Key Storage:** Maps `(CustomerId, Operation, IdempotencyKey)`. Retried network requests return the existing appointment without side effects.
+6. **Layer 6: FIFO Waiting Queue Fallback:** Requests that miss the distributed lock are not rejected with generic errors; they are automatically enqueued in order of arrival.
 
 ---
 
-## 🤖 Model Context Protocol (MCP) & Yapay Zeka Entegrasyonu
+## 🤖 Model Context Protocol (MCP) & AI Agent Integration
 
-Platform, modern LLM ajanlarının güvenli entegrasyonu için açık standart olan **Model Context Protocol (MCP)** sunucusunu barındırır.
+The platform provides a first-class **Model Context Protocol (MCP)** server enabling external AI models to interact with the scheduling system securely.
 
-### MCP Araçları Kataloğu (9 Resmi Tool):
-1. `get_organization_info`: Organizasyonun çalışma saatlerini, adresini, iletişim bilgilerini ve saat dilimini döner.
-2. `get_available_dates`: Belirli bir tarih aralığında randevuya açık günleri listeler.
-3. `get_available_slots`: İlgili güne ait müsait saat aralıklarını (slotları) yerel saatle döner.
-4. `create_appointment`: Dağıtık kilit ve çift rezervasyon koruması altında randevu kaydı oluşturur.
-5. `get_appointment`: Randevu ID ile durum ve detay sorgular.
-6. `get_customer_appointments`: Müşterinin aktif ve geçmiş tüm randevularını listeler.
-7. `cancel_appointment`: Randevuyu iptal eder, slotu serbest bırakır ve sıradaki kullanıcıya devreder.
-8. `get_queue_status`: Bekleme sırasındaki konumu, tahmini süreyi ve kiralama (lease) geri sayımını döner.
-9. `cancel_queue_request`: Müşteriyi bekleme sırasından çıkarır.
+### Tool Catalog (9 Official MCP Tools):
+1. `get_organization_info`: Retrieves organization profile, operating hours, address, and IANA timezone.
+2. `get_available_dates`: Lists upcoming calendar dates containing open appointment slots.
+3. `get_available_slots`: Returns available slots formatted in the organization's local timezone.
+4. `create_appointment`: Reserves a slot under RedLock protection and database uniqueness constraints.
+5. `get_appointment`: Fetches appointment details and current status by ID.
+6. `get_customer_appointments`: Lists active and historical bookings for a given customer.
+7. `cancel_appointment`: Cancels a booking, marks the slot as available, and promotes waiting queue candidates.
+8. `get_queue_status`: Checks position in line, estimated wait time, and reservation lease countdowns.
+9. `cancel_queue_request`: Removes a user's entry from the waiting queue.
 
-> **Güvenlik Kuralı:** AI Ajanı asla doğrudan veritabanı sorgusu (`SELECT/UPDATE`) yapamaz. Yalnızca bu MCP araçları üzerinden istek atar; istekler arka planda MediatR boru hattından, tenant validasyonundan ve concurrency kilitlerinden geçer.
+> **Security Rule:** AI agents never have direct database access. Every tool call invokes an Application MediatR command and passes through full validation, tenant scoping, and distributed locking pipelines.
 
 ---
 
-## 📊 Akış ve Sıralama Diyagramları (Mermaid Diagrams)
+## 📊 Sequence & Flow Diagrams
 
-### 1. Yapay Zeka ile Doğal Dil Üzerinden Randevu Akışı
+### 1. Conversational AI Appointment Booking Sequence
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Customer as Müşteri
+    actor Customer as Customer
     participant ChatUI as Frontend Chat UI
     participant ChatAPI as AppointmentBooking.ChatApi
-    participant LLM as AI LLM Ajanı (Qwen / Ollama)
+    participant LLM as AI LLM Agent (Qwen / Ollama)
     participant MCP as AppointmentBooking.McpServer
     participant AppCore as Application & MediatR
     participant DB as PostgreSQL & Redis
 
-    Customer->>ChatUI: "Yarın öğleden sonra Kadıköy kliniğine randevu almak istiyorum"
+    Customer->>ChatUI: "I need an appointment at Kadikoy Clinic tomorrow afternoon"
     ChatUI->>ChatAPI: POST /api/chat/messages { message, conversationId }
-    ChatAPI->>LLM: Doğal dil promptu + Mevcut MCP Tool tanımları
+    ChatAPI->>LLM: Natural Language Prompt + MCP Tool Schemas
     LLM-->>ChatAPI: Tool Call: get_available_slots(orgId, date: '2026-11-04')
     ChatAPI->>MCP: JSON-RPC Call: get_available_slots
     MCP->>AppCore: Send(GetAvailableSlotsQuery)
-    AppCore->>DB: Boş slotları sorgula (Status = Available)
-    DB-->>AppCore: Slot Listesi (14:00, 14:30, 15:30)
-    AppCore-->>MCP: DTO Listesi
-    MCP-->>ChatAPI: Tool Result (JSON)
-    ChatAPI->>LLM: Tool Result ile yanıt üret
-    LLM-->>ChatAPI: "Yarın için 14:00, 14:30 ve 15:30 uygun. Hangisini istersiniz?"
-    ChatAPI-->>ChatUI: Markdown Metin + AvailableSlotCards Payload
-    ChatUI-->>Customer: Tıklanabilir Saat Kartları (14:00, 14:30, 15:30)
+    AppCore->>DB: Query open slots (Status = Available)
+    DB-->>AppCore: Slot Results (14:00, 14:30, 15:30)
+    AppCore-->>MCP: DTO List
+    MCP-->>ChatAPI: Tool Result JSON
+    ChatAPI->>LLM: Synthesize response with tool data
+    LLM-->>ChatAPI: "Tomorrow we have slots at 14:00, 14:30, and 15:30. Which one works best?"
+    ChatAPI-->>ChatUI: Markdown Text + AvailableSlotCards Payload
+    ChatUI-->>Customer: Clickable Slot Cards (14:00, 14:30, 15:30)
 
-    Customer->>ChatUI: [14:30 Kartına Tıklar]
-    ChatUI->>Customer: "14:30 randevusunu onaylıyor musunuz?" (AppointmentConfirmationCard)
-    Customer->>ChatUI: ["Evet, Onaylıyorum" Butonuna Tıklar]
-    ChatUI->>ChatAPI: Onay eylemi tetikle
+    Customer->>ChatUI: [Clicks 14:30 Card]
+    ChatUI->>Customer: Prompt: "Confirm appointment for 14:30?" (AppointmentConfirmationCard)
+    Customer->>ChatUI: [Clicks "Yes, Confirm Booking"]
+    ChatUI->>ChatAPI: Submit explicit confirmation
     ChatAPI->>MCP: Tool Call: create_appointment(slotId, customerId, idempotencyKey)
     MCP->>AppCore: Send(CreateAppointmentCommand)
-    AppCore->>DB: 6-Katmanlı Kilit & Atomic Update
-    DB-->>AppCore: Randevu Onaylandı (APPT-2026-X1Y2)
+    AppCore->>DB: 6-Layer Lock & Atomic Update
+    DB-->>AppCore: Booking Confirmed (APPT-2026-X1Y2)
     AppCore-->>MCP: Success DTO
     MCP-->>ChatAPI: Tool Execution Result
-    ChatAPI-->>ChatUI: AppointmentSuccessCard (Takvime Ekle / ICS İndir)
-    ChatUI-->>Customer: Yeşil Onay Kartı ve Randevu Kodu
+    ChatAPI-->>ChatUI: AppointmentSuccessCard (ICS Calendar Download)
+    ChatUI-->>Customer: Green Success Card with Appointment Code & Calendar Export
 ```
 
 ---
 
-### 2. Bekleme Sırası Durum Makinesi (Waiting Queue State Machine)
+### 2. Waiting Queue State Machine
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Waiting : EnqueueRequest (Slot Dolu veya Kilit Aşıldı)
-    Waiting --> Processing : Background Worker Sıradaki Talebi Seçer
-    Processing --> Reserved : 5 Dakikalık Rezervasyon Hakkı (Lease) Verildi
-    Reserved --> Confirmed : Müşteri 5 Dakika İçinde Onayladı
-    Reserved --> Expired : 5 Dakikalık Süre Doldu (No-Action)
-    Expired --> Waiting : Sıradaki Yeni Aday Terfi Ettirilir
-    Waiting --> Cancelled : Müşteri Vazgeçti ve Sıradan Çıktı
+    [*] --> Waiting : EnqueueRequest (Slot Contested or Locked)
+    Waiting --> Processing : Background Worker Evaluates Queue Head
+    Processing --> Reserved : 5-Minute Lease Granted
+    Reserved --> Confirmed : Customer Confirms via Chat
+    Reserved --> Expired : 5-Minute Lease Window Expires
+    Expired --> Waiting : Next Queue Entry Promoted
+    Waiting --> Cancelled : Customer Cancels Waiting Request
     Confirmed --> [*]
     Cancelled --> [*]
 ```
 
 ---
 
-## 🗄️ Veritabanı Şeması ve ER Diyagramı
+## 🗄️ Database Schema & ER Diagram
 
 ```mermaid
 erDiagram
-    Organizations ||--o{ OrganizationUsers : "barındırır"
-    Organizations ||--o{ WeeklyAvailabilities : "tanımlar"
-    Organizations ||--o{ AppointmentSlots : "sahiptir"
-    Organizations ||--o{ Appointments : "yönetir"
-    Organizations ||--o{ Customers : "kaydeder"
-    Organizations ||--o{ WaitingQueueEntries : "sıraya_alır"
-    Organizations ||--o{ Conversations : "tutar"
+    Organizations ||--o{ OrganizationUsers : "employs"
+    Organizations ||--o{ WeeklyAvailabilities : "defines"
+    Organizations ||--o{ AppointmentSlots : "owns"
+    Organizations ||--o{ Appointments : "hosts"
+    Organizations ||--o{ Customers : "registers"
+    Organizations ||--o{ WaitingQueueEntries : "queues"
+    Organizations ||--o{ Conversations : "logs"
 
-    Customers ||--o{ Appointments : "randevu_alır"
-    Customers ||--o{ WaitingQueueEntries : "sıraya_girer"
-    Customers ||--o{ Conversations : "sohbet_eder"
-    Customers ||--o{ IdempotencyRecords : "istek_atar"
+    Customers ||--o{ Appointments : "books"
+    Customers ||--o{ WaitingQueueEntries : "joins"
+    Customers ||--o{ Conversations : "participates"
+    Customers ||--o{ IdempotencyRecords : "authorizes"
 
-    AppointmentSlots ||--o| Appointments : "kilitler"
-    AppointmentSlots ||--o{ WaitingQueueEntries : "tahsis_edilir"
-    Conversations ||--o{ ConversationMessages : "mesaj_içerir"
+    AppointmentSlots ||--o| Appointments : "locks"
+    AppointmentSlots ||--o{ WaitingQueueEntries : "allocates"
+    Conversations ||--o{ ConversationMessages : "contains"
 
     Organizations {
         uuid Id PK
@@ -417,83 +417,83 @@ erDiagram
 
 ---
 
-## 💻 Frontend Mimarisi ve UI/UX Tasarımı
+## 💻 Frontend Architecture & Conversational UI/UX
 
-Frontend projesi, **Next.js 16 (App Router)** mimarisiyle sıfırdan geliştirilmiş, son derece zengin ve modern bir kullanıcı deneyimi sunar:
+Built using **Next.js 16 (App Router)** and **Tailwind CSS v4**, the frontend provides two purpose-built workspaces sharing a unified design token system:
 
-### 1. Bölümlenmiş Deneyim Alanları:
-* **Admin Çalışma Alanı (`/admin/*`):**
-  * `dashboard`: Günlük KPI metrikleri, randevu doluluk oranları, Recharts etkileşimli aktivite grafiği.
-  * `calendar`: Günlük/Haftalık dinamik slot ızgarası, tek tıkla slot kilitleme/açma toggle'ı.
-  * `availability`: Haftalık çalışma saatleri şablonu ve toplu slot üretici motoru (Batch Generator).
-  * `appointments`: Filtrelenebilir, aranabilir kurumsal randevu tablosu ve iptal modalları.
-  * `waiting-queue`: Canlı bekleme sıraları, öncelik skorları ve kalan süre sayaçları.
-* **Müşteri Portalı (`/app/*`):**
-  * `chat` ve `chat/[slug]`: Tam ekran, mobil öncelikli, zengin kart destekli AI randevu asistanı.
-  * `my-appointments`: Aktif, geçmiş ve iptal edilen randevular, takvime kaydetme (ICS export).
-  * `organizations`: Hizmet veren kurumları keşfetme ve profillerini inceleme rehberi.
+### 1. Partitioned Routing Structure:
+* **Admin Workspace (`/admin/*`):**
+  * `dashboard`: Real-time KPI summaries, booking trends, and Recharts interactive graphs.
+  * `calendar`: Day and week calendar grids with 1-click slot locking and capacity toggling.
+  * `availability`: Weekly working hours template and batch slot generation engine.
+  * `appointments`: Searchable, filterable administrative table with cancellation dialogs.
+  * `waiting-queue`: Real-time candidate positions, priority scores, and lease countdowns.
+* **Customer Portal (`/app/*`):**
+  * `chat` & `chat/[slug]`: Fullscreen, mobile-optimized AI booking assistant with action cards.
+  * `my-appointments`: Active, historical, and cancelled bookings with .ics calendar downloads.
+  * `organizations`: Searchable directory of participating clinics and service providers.
 
-### 2. Akıllı Sohbet Kartları (Discriminated Action Cards):
-Sohbet arayüzü asla ham JSON veya düzensiz metin göstermez; backend'in döndürdüğü `cardType` etiketine göre özel arayüz kartları render eder:
-* `AvailableSlotCards`: Seçilebilir interaktif saat butonları.
-* `AppointmentConfirmationCard`: Açık onay gerektiren "Evet, Onaylıyorum" / "Değiştir" aksiyon kartı.
-* `AppointmentSuccessCard`: Onay rozeti, ICS takvim indirme ve randevu özet bilgisi.
-* `AppointmentCancellationCard`: İptal gerekçesi ve iptal teyit kartı.
-* `WaitingQueueCard`: Canlı sıra numarası ve 5 dakikalık rezervasyon geri sayım sayacı.
-* `TypingIndicator`: AI modelinin hangi aracı çalıştırdığını bildiren mikro durum animasyonu.
+### 2. Discriminated Action Cards:
+The chat engine never dumps unformatted text or raw JSON; responses render structured UI cards based on the backend `cardType`:
+* `AvailableSlotCards`: Interactive 1-click time slot selection buttons.
+* `AppointmentConfirmationCard`: Explicit "Yes, Confirm Booking" / "Change Slot" prompt.
+* `AppointmentSuccessCard`: Confirmed status pill, appointment reference code, and ICS download.
+* `AppointmentCancellationCard`: Explicit cancellation reason review and confirmation.
+* `WaitingQueueCard`: Real-time queue position and active 5-minute countdown timer.
+* `TypingIndicator`: Animated micro-status indicating active MCP tool executions.
 
 ---
 
-## 🌐 Servis ve Port Haritası
+## 🌐 Service & Port Mapping
 
-Yerel geliştirme veya konteyner ortamında çalışan servislerin varsayılan ağ haritası:
+Default network ports across services in local development and container environments:
 
-| Servis Adı | Port | Protokol / Rol | Açıklama |
+| Service Name | Port | Protocol / Transport | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Next.js Frontend** | `http://localhost:3000` | HTTP / Web UI | Admin Dashboard ve Müşteri Sohbet Portalı |
-| **Appointment Core API** | `http://localhost:5099` | HTTP / REST | Organizasyon, Müsaitlik, Slot ve Randevu Minimal API'leri |
-| **AI Chat API** | `http://localhost:5111` | HTTP / REST | LLM ve Sohbet Oturum Orkestratörü |
-| **MCP Server** | `http://localhost:5251` | JSON-RPC / SSE | Model Context Protocol Tool Sunucusu |
-| **PostgreSQL 16** | `localhost:5432` | TCP / SQL | İlişkisel Veritabanı (`appointment_db`) |
-| **Redis 7** | `localhost:6379` | TCP / Cache | RedLock Dağıtık Kilit & Dağıtık Önbellek |
-| **RabbitMQ Management** | `http://localhost:15672` | HTTP / AMQP | Mesaj Kuyruğu Yönetim Paneli (Kullanıcı: `appointment_guest`) |
+| **Next.js Frontend** | `http://localhost:3000` | HTTP / Web UI | Admin Dashboard & Customer Chat Experience |
+| **Appointment Core API** | `http://localhost:5099` | HTTP / REST | Organization, Availability, Slot & Appointment APIs |
+| **AI Chat API** | `http://localhost:5111` | HTTP / REST | Conversational LLM Orchestrator |
+| **MCP Server** | `http://localhost:5251` | JSON-RPC / SSE | Model Context Protocol Tool Server |
+| **PostgreSQL 16** | `localhost:5432` | TCP / SQL | Primary Database (`appointment_db`) |
+| **Redis 7** | `localhost:6379` | TCP / Cache | RedLock Distributed Locks & Cache |
+| **RabbitMQ Management** | `http://localhost:15672` | HTTP / AMQP | Message Broker Admin Panel (User: `appointment_guest`) |
 
 ---
 
-## 🧪 Test Stratejisi ve Doğrulama Sonuçları
+## 🧪 Testing Strategy & Load Verification
 
-Sistemde mimari kuralları, iş mantığını ve eşzamanlılık dayanıklılığını güvenceye alan **41 adet otomatik test** bulunmaktadır:
+The test suite includes **41 automated tests** covering architectural boundaries, unit invariants, end-to-end integration flows, and concurrency stress scenarios:
 
 ```text
 Test Run Summary: Total: 41 | Passed: 41 | Failed: 0 | Skipped: 0
 ```
 
-1. **`AppointmentBooking.UnitTests` (17 Test - Geçti):**
-   * Aggregate root invariant kontrolleri, çakışan slot saatlerinin tespiti, Value Object kuralları ve durum makinesi geçişleri.
-2. **`AppointmentBooking.ArchitectureTests` (5 Test - Geçti):**
-   * NetArchTest ile Clean Architecture katman bağımlılık kurallarının korunması (örneğin `Domain` katmanının hiçbir üst katmana referans vermemesi).
-3. **`AppointmentBooking.IntegrationTests` (13 Test - Geçti):**
-   * Gerçek PostgreSQL ve Redis konteynerleri üzerinde tam uçtan uca randevu yaşam döngüsü, tenant izolasyonu ve MCP Server tool çağrıları.
-4. **`AppointmentBooking.ConcurrencyTests` (6 Test - Geçti):**
-   * **500 Eşzamanlı İstek Testi:** Aynı 30 dakikalık randevu slotuna aynı anda 500 paralel istek atıldığında tam olarak **1 adet 201 Created**, kalan **499 adet 202 Queued / 409 Conflict** üretildiği ve veritabanında kesinlikle tek bir aktif kayıt oluştuğu kanıtlanmıştır.
+1. **`AppointmentBooking.UnitTests` (17 Tests - Passed):**
+   * Aggregate root consistency boundaries, time slot overlap validation, Value Object invariants, and state machine transitions.
+2. **`AppointmentBooking.ArchitectureTests` (5 Tests - Passed):**
+   * NetArchTest rules enforcing Clean Architecture layers (e.g., Domain having no external dependencies).
+3. **`AppointmentBooking.IntegrationTests` (13 Tests - Passed):**
+   * Real PostgreSQL and Redis container tests verifying full appointment lifecycles, tenant isolation filters, and MCP Server tool calls.
+4. **`AppointmentBooking.ConcurrencyTests` (6 Tests - Passed):**
+   * **500 Concurrent Requests Test:** When 500 simultaneous requests hit the exact same 30-minute slot at the same millisecond, the system produced **exactly 1 `201 Created`** response and **499 `202 Queued` / `409 Conflict`** responses, verifying zero double-booking under extreme load.
 
 ---
 
-## 🚀 Kurulum ve Yerel Çalıştırma Kılavuzu
+## 🚀 Getting Started & Local Development Guide
 
-### 1. Ön Gereksinimler
+### 1. Prerequisites
 * [.NET 10 SDK](https://dotnet.microsoft.com/download)
 * [Node.js 20+ & npm](https://nodejs.org/)
 * [Docker & Docker Compose](https://www.docker.com/)
 
-### 2. Altyapı Servislerini Başlatma
-Veritabanı, Redis ve RabbitMQ servislerini arka planda ayağa kaldırın:
+### 2. Start Infrastructure Containers
+Launch PostgreSQL, Redis, and RabbitMQ in the background:
 ```bash
 docker-compose up -d postgres redis rabbitmq
 ```
 
-### 3. Backend Servislerini Çalıştırma
-Ayrı terminal pencerelerinde servisleri başlatın:
+### 3. Launch Backend Services
+Start the backend components in separate terminal sessions:
 
 **1. Core API (Port: 5099):**
 ```bash
@@ -510,19 +510,19 @@ dotnet run --project src/AppointmentBooking.McpServer/AppointmentBooking.McpServ
 dotnet run --project src/AppointmentBooking.ChatApi/AppointmentBooking.ChatApi.csproj
 ```
 
-### 4. Frontend Uygulamasını Başlatma
+### 4. Launch Frontend Web App
 ```bash
 cd frontend
 npm install
 npm run dev -- -p 3000
 ```
 
-Uygulamanız artık hazır!
-* **Müşteri & Admin Portalı:** [http://localhost:3000](http://localhost:3000)
-* **Core API Swagger:** [http://localhost:5099/swagger](http://localhost:5099/swagger)
-* **MCP Server Health:** [http://localhost:5251/health](http://localhost:5251/health)
+### 5. Access the Platform
+* **Customer & Admin Portal:** [http://localhost:3000](http://localhost:3000)
+* **Core API Swagger Documentation:** [http://localhost:5099/swagger](http://localhost:5099/swagger)
+* **MCP Server Health Check:** [http://localhost:5251/health](http://localhost:5251/health)
 
 ---
 
-## 📄 Lisans
-Bu proje kurumsal kullanım ve yapay zeka destekli randevu orkestrasyonu amacıyla özel olarak geliştirilmiştir. Tüm hakları saklıdır.
+## 📄 License
+This project is an enterprise-grade AI scheduling solution. All rights reserved.
