@@ -118,8 +118,9 @@ export function ChatMessageBubble({
         {(message.requiresConfirmation || message.cardType === "appointment_confirmation") && (
           <AppointmentConfirmationCard
             organizationName={message.confirmationData?.organizationName || organizationName}
-            date={message.confirmationData?.date || "Yarın"}
-            time={message.confirmationData?.time || "10:30"}
+            date={message.confirmationData?.date || "-"}
+            time={message.confirmationData?.time || "-"}
+            customerName={message.confirmationData?.customerName}
             onConfirm={onConfirmAppointment}
             onChangeTime={onChangeTime}
             onCancel={onCancelAppointment}

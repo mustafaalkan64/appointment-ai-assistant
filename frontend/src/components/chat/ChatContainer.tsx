@@ -13,6 +13,17 @@ import { ChatEmptyState } from "./ChatEmptyState";
 import { TypingIndicator } from "./TypingIndicator";
 import { toast } from "sonner";
 
+// Extracts "dd.MM.yyyy HH:mm - HH:mm" (slot LocalDisplay) from backend text
+function parseSlotDisplay(text: string): { date?: string; time?: string; localDisplay?: string } {
+  const m = text.match(/(\d{2}\.\d{2}\.\d{4})\s+(\d{2}:\d{2})(?:\s*-\s*(\d{2}:\d{2}))?/);
+  if (!m) return {};
+  return {
+    date: m[1],
+    time: m[3] ? `${m[2]} - ${m[3]}` : m[2],
+    localDisplay: m[0],
+  };
+}
+
 interface ChatContainerProps {
   initialOrgSlug?: string;
 }
@@ -158,11 +169,14 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
         };
       } else if (response.requiresConfirmation) {
         cardType = "appointment_confirmation";
+        const parsed = parseSlotDisplay(response.summary || respContent);
         confirmationData = {
           organizationId: orgId,
           organizationName: activeOrg?.name,
-          date: "Seçilen Gün",
-          time: "Belirlenen Saat",
+          date: parsed.date,
+          time: parsed.time,
+          localDisplay: parsed.localDisplay,
+          customerName: session?.fullName,
         };
       }
 

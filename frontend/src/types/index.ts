@@ -243,6 +243,7 @@ export interface ChatMessage {
     date?: string;
     time?: string;
     note?: string;
+    customerName?: string;
   };
   successData?: {
     appointmentId?: string;
