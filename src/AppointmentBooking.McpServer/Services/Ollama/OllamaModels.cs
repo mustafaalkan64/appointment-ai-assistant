@@ -13,12 +13,14 @@ public sealed record OllamaChatRequest(
 
 public sealed record OllamaOptions(
     [property: JsonPropertyName("temperature")] float? Temperature = 0.1f,
-    [property: JsonPropertyName("num_predict")] int? NumPredict = null);
+    [property: JsonPropertyName("num_predict")] int? NumPredict = null,
+    [property: JsonPropertyName("think")] bool? Think = false);
 
 public sealed record OllamaChatMessage(
     [property: JsonPropertyName("role")] string Role,
     [property: JsonPropertyName("content")] string Content,
-    [property: JsonPropertyName("tool_calls")] List<OllamaToolCall>? ToolCalls = null);
+    [property: JsonPropertyName("tool_calls")] List<OllamaToolCall>? ToolCalls = null,
+    [property: JsonPropertyName("tool_name")] string? ToolName = null);
 
 public sealed record OllamaTool(
     [property: JsonPropertyName("type")] string Type,
@@ -56,7 +58,8 @@ public sealed record McpChatClientRequest(
     Guid? CustomerId = null,
     string? Model = null,
     List<McpChatMessageHistoryItem>? History = null,
-    bool AutoExecuteTools = true);
+    bool AutoExecuteTools = true,
+    bool RequireConfirmationForWrites = false);
 
 public sealed record McpChatMessageHistoryItem(
     string Role,

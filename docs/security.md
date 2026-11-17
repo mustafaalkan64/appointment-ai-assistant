@@ -15,6 +15,7 @@
 ---
 
 ## 3. AI Agent Confirmation Security
-- The AI Agent in `AppointmentBooking.ChatApi` enforces a strict two-phase state machine:
-  - Destructive actions (`create_appointment`, `cancel_appointment`) **CANNOT** be executed in a single turn without explicit customer confirmation (`requiresConfirmation: true`).
-  - Proposed parameters (slot time, appointment ID, reason) are frozen in JSON context until confirmed.
+- The chat LLM selects a tool from its advertised descriptions and schemas; application code does not classify user intent with keyword-based `if/else` rules.
+- Write tools are held for explicit user confirmation in the chat flow. This is a security policy applied after model selection, not a tool-selection rule. The selected tool name and arguments are retained as a pending action until confirmation or rejection.
+- MCP tool annotations are advisory metadata only. Tool handlers and application-layer authorization/validation remain authoritative.
+- Streamable HTTP requests that include an `Origin` header must match `McpServer:AllowedOrigins`; requests without Origin are allowed. Do not use wildcard CORS for the MCP endpoint.

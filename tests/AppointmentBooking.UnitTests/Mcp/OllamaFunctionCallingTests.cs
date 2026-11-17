@@ -28,8 +28,8 @@ public class OllamaFunctionCallingTests
         prompt.Should().Contain(custId.ToString());
         prompt.Should().Contain("Test Poliklinik");
         prompt.Should().Contain(DateTime.UtcNow.ToString("yyyy-MM-dd"));
-        prompt.Should().Contain("get_available_slots");
-        prompt.Should().Contain("create_appointment");
+        prompt.Should().Contain("araç açıklamalarına");
+        prompt.Should().Contain("if-else kurallarıyla");
     }
 
     [Fact]

@@ -63,3 +63,25 @@ public sealed record McpResourceContent(
     [property: JsonPropertyName("uri")] string Uri,
     [property: JsonPropertyName("mimeType")] string MimeType,
     [property: JsonPropertyName("text")] string Text);
+
+public sealed record McpPromptDefinition(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("description")] string Description,
+    [property: JsonPropertyName("arguments")] List<McpPromptArgument> Arguments);
+
+public sealed record McpPromptArgument(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("description")] string Description,
+    [property: JsonPropertyName("required")] bool Required);
+
+public sealed record McpPromptGetResult(
+    [property: JsonPropertyName("description")] string Description,
+    [property: JsonPropertyName("messages")] List<McpPromptMessage> Messages);
+
+public sealed record McpPromptMessage(
+    [property: JsonPropertyName("role")] string Role,
+    [property: JsonPropertyName("content")] McpPromptMessageContent Content);
+
+public sealed record McpPromptMessageContent(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("text")] string Text);

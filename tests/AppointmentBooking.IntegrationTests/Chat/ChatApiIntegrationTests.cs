@@ -4,6 +4,7 @@ extern alias McpServerAssembly;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using AppointmentBooking.Domain.Entities;
 using AppointmentBooking.Domain.Enums;
 using AppointmentBooking.Infrastructure.Persistence;
@@ -12,11 +13,18 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 using ChatProgram = ChatApiAssembly::AppointmentBooking.ChatApi.ChatProgram;
 using HttpMcpClient = ChatApiAssembly::AppointmentBooking.ChatApi.Services.HttpMcpClient;
 using IMcpClient = ChatApiAssembly::AppointmentBooking.ChatApi.Services.IMcpClient;
 using McpProgram = McpServerAssembly::AppointmentBooking.McpServer.McpProgram;
+using IOllamaClient = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.IOllamaClient;
+using OllamaChatRequest = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.OllamaChatRequest;
+using OllamaChatResponse = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.OllamaChatResponse;
+using OllamaResponseMessage = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.OllamaResponseMessage;
+using OllamaToolCall = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.OllamaToolCall;
+using OllamaFunctionCall = McpServerAssembly::AppointmentBooking.McpServer.Services.Ollama.OllamaFunctionCall;
 
 namespace AppointmentBooking.IntegrationTests.Chat;
 
@@ -30,7 +38,15 @@ public class ChatApiIntegrationTests : IClassFixture<WebApplicationFactory<ChatP
         WebApplicationFactory<ChatProgram> chatFactory,
         WebApplicationFactory<McpProgram> mcpFactory)
     {
-        _mcpFactory = mcpFactory;
+        var testOllamaClient = new TestOllamaClient();
+        _mcpFactory = mcpFactory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<IOllamaClient>();
+                services.AddSingleton<IOllamaClient>(testOllamaClient);
+            });
+        });
 
         // Route ChatApi's IMcpClient to McpServer's test HttpClient
         var mcpHttpClient = _mcpFactory.CreateClient();
@@ -499,4 +515,238 @@ public class ChatApiIntegrationTests : IClassFixture<WebApplicationFactory<ChatP
 
         sundayContent.Should().Contain("Pazar günleri kapalıdır", "Agent must explicitly state Sunday is closed when asked directly!");
     }
+}
+
+/// <summary>
+/// Deterministic model double for integration tests. It returns tool calls as an LLM
+/// would; the production orchestrator still decides when and how those calls execute.
+/// </summary>
+internal sealed class TestOllamaClient : IOllamaClient
+{
+    public Task<OllamaChatResponse> ChatAsync(OllamaChatRequest request, CancellationToken ct = default)
+    {
+        var currentUser = request.Messages.LastOrDefault(x => x.Role == "user")?.Content ?? string.Empty;
+        var systemPrompt = request.Messages.FirstOrDefault(x => x.Role == "system")?.Content ?? string.Empty;
+        var organizationId = FindContextGuid(systemPrompt, "Kurum GUID");
+        var customerId = FindContextGuid(systemPrompt, "Müşteri GUID");
+
+        var lastToolCall = request.Messages
+            .Where(x => x.Role == "assistant" && x.ToolCalls is { Count: > 0 })
+            .SelectMany(x => x.ToolCalls!)
+            .LastOrDefault();
+        var lastToolResult = request.Messages.LastOrDefault(x => x.Role == "tool")?.Content;
+
+        if (lastToolCall?.Function.Name == "get_available_slots" && lastToolResult is not null)
+        {
+            using var slotsDocument = JsonDocument.Parse(lastToolResult);
+            var slots = GetArray(slotsDocument.RootElement, "Slots");
+            var requestedTime = Regex.Match(currentUser, @"(?<!\d)(?<hour>\d{1,2})[:.](?<minute>\d{2})");
+            var slot = slots.FirstOrDefault(item =>
+            {
+                var display = GetString(item, "LocalDisplay");
+                return requestedTime.Success &&
+                       display.Contains($"{int.Parse(requestedTime.Groups["hour"].Value):00}:{requestedTime.Groups["minute"].Value}");
+            });
+            if (slot.ValueKind == JsonValueKind.Undefined)
+                slot = slots.FirstOrDefault();
+
+            if (slot.ValueKind != JsonValueKind.Undefined)
+            {
+                var selectedSlotId = GetString(slot, "Id");
+                return Task.FromResult(CreateResponse(request, string.Empty, "create_appointment", new
+                {
+                    organization_id = organizationId,
+                    customer_id = customerId,
+                    slot_id = selectedSlotId,
+                    idempotency_key = $"test-{Guid.NewGuid():N}",
+                    note = (string?)null
+                }));
+            }
+
+            return Task.FromResult(CreateResponse(request, "İstenen tarih ve saat için uygun slot bulamadım."));
+        }
+
+        if (lastToolCall?.Function.Name == "get_customer_appointments" && lastToolResult is not null)
+        {
+            using var appointmentsDocument = JsonDocument.Parse(lastToolResult);
+            var appointments = GetArray(appointmentsDocument.RootElement, "Appointments")
+                .OrderBy(x => GetDateTime(x, "StartUtc"))
+                .ToList();
+            var isCancel = currentUser.Contains("iptal", StringComparison.OrdinalIgnoreCase) ||
+                           request.Messages.Any(x => x.Role == "assistant" &&
+                               x.Content.Contains("iptal etmek istersiniz", StringComparison.OrdinalIgnoreCase));
+            var isConfirm = currentUser.Contains("onay", StringComparison.OrdinalIgnoreCase) ||
+                            request.Messages.Any(x => x.Role == "assistant" &&
+                                x.Content.Contains("onaylamak istersiniz", StringComparison.OrdinalIgnoreCase));
+            var requestedTime = Regex.Match(currentUser, @"(?<!\d)(?<hour>\d{1,2})[:.](?<minute>\d{2})");
+            var selectedIndex = Regex.Match(currentUser.Trim(), @"^(?<index>\d+)\.?$");
+            JsonElement target = default;
+
+            if (requestedTime.Success)
+            {
+                var timeText = $"{int.Parse(requestedTime.Groups["hour"].Value):00}:{requestedTime.Groups["minute"].Value}";
+                target = appointments.FirstOrDefault(x => GetString(x, "LocalDisplay").Contains(timeText));
+            }
+            else if (selectedIndex.Success &&
+                     int.TryParse(selectedIndex.Groups["index"].Value, out var index) &&
+                     index > 0 && index <= appointments.Count)
+            {
+                target = appointments[index - 1];
+            }
+            else if (appointments.Count == 1)
+            {
+                target = appointments[0];
+            }
+
+            if (target.ValueKind == JsonValueKind.Undefined)
+            {
+                if (appointments.Count == 0)
+                    return Task.FromResult(CreateResponse(request, "Sistemde kayıtlı aktif randevunuz bulunmuyor."));
+
+                var list = string.Join("\n", appointments.Select((x, index) =>
+                    $"{index + 1}. {GetString(x, "AppointmentNumber")}: {GetString(x, "LocalDisplay")}"));
+                var question = isCancel
+                    ? "Hangi randevunuzu iptal etmek istersiniz?"
+                    : isConfirm
+                        ? "Hangi randevunuzu onaylamak istersiniz?"
+                        : "Hangi randevunuzu görüntülemek istersiniz?";
+                return Task.FromResult(CreateResponse(request,
+                    $"{question}\nKayıtlı randevularınız:\n{list}"));
+            }
+
+            var appointmentId = GetString(target, "Id");
+            var appointmentNumber = GetString(target, "AppointmentNumber");
+            var localDisplay = GetString(target, "LocalDisplay");
+            var status = GetString(target, "Status");
+
+            if (isConfirm && string.Equals(status, "Confirmed", StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult(CreateResponse(request,
+                    $"{appointmentNumber} numaralı randevunuz zaten onaylanmış durumdadır."));
+
+            if (isCancel)
+            {
+                return Task.FromResult(CreateResponse(request,
+                    $"{appointmentNumber} numaralı ({localDisplay}) randevunuzu iptal etmek istediğinize emin misiniz?",
+                    "cancel_appointment",
+                    new
+                    {
+                        organization_id = organizationId,
+                        appointment_id = appointmentId,
+                        customer_id = customerId,
+                        reason = "Müşteri iptal talebi",
+                        idempotency_key = $"test-cancel-{Guid.NewGuid():N}"
+                    }));
+            }
+
+            return Task.FromResult(CreateResponse(request, $"{appointmentNumber} numaralı randevunuz: {localDisplay}"));
+        }
+
+        if (lastToolCall?.Function.Name == "get_organization_info" && lastToolResult is not null)
+        {
+            using var organizationDocument = JsonDocument.Parse(lastToolResult);
+            var week = GetArray(organizationDocument.RootElement, "WeeklyAvailabilities");
+            var sunday = week.FirstOrDefault(x =>
+                GetString(x, "DayName").Equals("Sunday", StringComparison.OrdinalIgnoreCase) ||
+                GetString(x, "DayName").Equals("Pazar", StringComparison.OrdinalIgnoreCase) ||
+                GetInt(x, "DayOfWeek") == 0);
+            var sundayIsActive = sunday.ValueKind != JsonValueKind.Undefined &&
+                                 GetBool(sunday, "IsActive");
+            var reply = sundayIsActive
+                ? "Pazar günleri hizmet veriyoruz."
+                : "Pazar günleri kapalıdır.\n- Pazar: Kapalı";
+            return Task.FromResult(CreateResponse(request, reply));
+        }
+
+        if (currentUser.Contains("çalışma saat", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("pazar", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("adres", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(CreateResponse(request, string.Empty, "get_organization_info",
+                new { organization_id = organizationId }));
+        }
+
+        if (currentUser.Contains("randevular", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("iptal", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("onayla", StringComparison.OrdinalIgnoreCase) ||
+            Regex.IsMatch(currentUser.Trim(), @"^\d+\.?$"))
+        {
+            return Task.FromResult(CreateResponse(request, string.Empty, "get_customer_appointments",
+                new { organization_id = organizationId, customer_id = customerId }));
+        }
+
+        if (currentUser.Contains("randevu", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("müsait", StringComparison.OrdinalIgnoreCase) ||
+            currentUser.Contains("uygun", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(CreateResponse(request, string.Empty, "get_available_slots",
+                new { organization_id = organizationId }));
+        }
+
+        return Task.FromResult(CreateResponse(request, "Merhaba! Size nasıl yardımcı olabilirim?"));
+    }
+
+    private static OllamaChatResponse CreateResponse(
+        OllamaChatRequest request,
+        string content,
+        string? toolName = null,
+        object? arguments = null)
+    {
+        List<OllamaToolCall>? toolCalls = null;
+        if (toolName is not null)
+        {
+            toolCalls =
+            [
+                new OllamaToolCall(
+                    $"test-{Guid.NewGuid():N}",
+                    new OllamaFunctionCall(toolName, JsonSerializer.SerializeToElement(arguments)))
+            ];
+        }
+
+        return new OllamaChatResponse(
+            request.Model,
+            DateTimeOffset.UtcNow.ToString("O"),
+            new OllamaResponseMessage("assistant", content, toolCalls),
+            true);
+    }
+
+    private static Guid FindContextGuid(string prompt, string label)
+    {
+        var match = Regex.Match(prompt, Regex.Escape(label) + @":\s*'(?<id>[0-9a-fA-F-]{36})'");
+        return match.Success && Guid.TryParse(match.Groups["id"].Value, out var id) ? id : Guid.Empty;
+    }
+
+    private static List<JsonElement> GetArray(JsonElement element, string name)
+    {
+        if (element.ValueKind == JsonValueKind.Array)
+            return element.EnumerateArray().ToList();
+        var property = FindProperty(element, name);
+        return property.ValueKind == JsonValueKind.Array ? property.EnumerateArray().ToList() : [];
+    }
+
+    private static JsonElement FindProperty(JsonElement element, string name)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+            return default;
+        foreach (var property in element.EnumerateObject())
+        {
+            if (string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase))
+                return property.Value;
+        }
+        return default;
+    }
+
+    private static string GetString(JsonElement element, string name) =>
+        FindProperty(element, name).ValueKind == JsonValueKind.String
+            ? FindProperty(element, name).GetString() ?? string.Empty
+            : string.Empty;
+
+    private static int GetInt(JsonElement element, string name) =>
+        FindProperty(element, name).ValueKind == JsonValueKind.Number &&
+        FindProperty(element, name).TryGetInt32(out var value) ? value : -1;
+
+    private static bool GetBool(JsonElement element, string name) =>
+        FindProperty(element, name).ValueKind == JsonValueKind.True;
+
+    private static DateTimeOffset GetDateTime(JsonElement element, string name) =>
+        DateTimeOffset.TryParse(GetString(element, name), out var value) ? value : DateTimeOffset.MaxValue;
 }

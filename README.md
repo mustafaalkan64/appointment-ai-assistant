@@ -155,9 +155,9 @@ appointment-ai-assistant/
 │   │   └── Extensions/                  # Service registrations & OpenAPI/Swagger specs
 │   │
 │   ├── AppointmentBooking.McpServer/    # Model Context Protocol (MCP) Host Service
-│   │   ├── Tools/                       # 9 official MCP Tool definitions & JSON schemas
-│   │   ├── Handlers/                    # JSON-RPC 2.0 mapping to MediatR commands
-│   │   └── Transports/                  # HTTP POST (`/mcp`) & SSE (`/mcp/sse`) handlers
+│   │   ├── Services/McpSdkTools.cs      # SDK-registered tools, resources, and prompts
+│   │   ├── Services/McpToolRegistry.cs  # Tool execution mapped to MediatR handlers
+│   │   └── /mcp                       # SDK Streamable HTTP endpoint (stateless)
 │   │
 │   └── AppointmentBooking.ChatApi/      # Conversational Agent Orchestrator
 │       ├── Services/                    # LLM Client, Agent Session State Machine, Tool Caller
