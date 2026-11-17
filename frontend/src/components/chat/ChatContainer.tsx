@@ -97,7 +97,7 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
           const savedOrg = orgs.find((o) => o.id === savedOrgId);
           if (savedOrg) return savedOrg;
         }
-      } catch {}
+      } catch { }
     }
 
     // 5. Fallback to first active organization
@@ -121,7 +121,7 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
       const updated = [newMeta, ...filtered].slice(0, 15);
       try {
         localStorage.setItem("appointai_chat_conversations", JSON.stringify(updated));
-      } catch {}
+      } catch { }
       return updated;
     });
   };
@@ -147,7 +147,7 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
     setMessages([]);
     try {
       localStorage.setItem("appointai_last_booked_org_id", org.id);
-    } catch {}
+    } catch { }
     toast.info(`Aktif kurum: ${org.name}`);
   };
 
@@ -253,7 +253,7 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
       if (isConfirmedSuccess) {
         try {
           localStorage.setItem("appointai_last_booked_org_id", orgId);
-        } catch {}
+        } catch { }
       }
 
       if (response.isCompleted || isConfirmedSuccess || isCancelledCompletion) {
