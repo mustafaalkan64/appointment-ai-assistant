@@ -2,13 +2,15 @@
 
 import React from "react";
 import Link from "next/link";
-import { MessageSquare, Plus, Sparkles, Building2, Calendar, ChevronRight } from "lucide-react";
+import { MessageSquare, Plus, Building2, Calendar, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Organization } from "@/types";
 
 export interface ConversationMeta {
   id: string;
   title: string;
+  organizationId?: string;
   organizationName?: string;
   organizationSlug?: string;
   updatedAt: string;
@@ -22,6 +24,9 @@ interface ChatSidebarProps {
   onNewConversation: () => void;
   currentOrgName?: string;
   currentOrgSlug?: string;
+  organizations?: Organization[];
+  currentOrgId?: string;
+  onSelectOrganization?: (org: Organization) => void;
 }
 
 export function ChatSidebar({
@@ -31,6 +36,9 @@ export function ChatSidebar({
   onNewConversation,
   currentOrgName,
   currentOrgSlug,
+  organizations = [],
+  currentOrgId,
+  onSelectOrganization,
 }: ChatSidebarProps) {
   return (
     <aside className="w-72 border-r border-border bg-surface/50 flex flex-col h-full shrink-0">
@@ -45,18 +53,42 @@ export function ChatSidebar({
         </Button>
 
         {currentOrgName && (
-          <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5 flex items-center justify-between">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <Building2 className="w-4 h-4 text-primary shrink-0" />
-              <div className="truncate">
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Seçili Kurum</div>
-                <div className="text-xs font-semibold truncate text-foreground">{currentOrgName}</div>
+          <div className="p-2.5 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <Building2 className="w-4 h-4 text-primary shrink-0" />
+                <div className="truncate">
+                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                    Seçili Kurum
+                  </div>
+                  <div className="text-xs font-semibold truncate text-foreground">
+                    {currentOrgName}
+                  </div>
+                </div>
               </div>
+              {currentOrgSlug && (
+                <Link href={`/organization/${currentOrgSlug}`} title="Kurum Detayına Git">
+                  <ChevronRight className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                </Link>
+              )}
             </div>
-            {currentOrgSlug && (
-              <Link href={`/organization/${currentOrgSlug}`}>
-                <ChevronRight className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-              </Link>
+
+            {organizations.length > 1 && onSelectOrganization && (
+              <select
+                value={currentOrgId || ""}
+                onChange={(e) => {
+                  const found = organizations.find((o) => o.id === e.target.value);
+                  if (found) onSelectOrganization(found);
+                }}
+                className="w-full rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                aria-label="Kurum Değiştir"
+              >
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         )}

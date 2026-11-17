@@ -11,32 +11,32 @@ interface ChatEmptyStateProps {
 export function ChatEmptyState({ organizationName, onSelectPrompt }: ChatEmptyStateProps) {
   const suggestedPrompts = [
     {
-      title: "Randevu almak istiyorum",
-      description: "Uygun saatleri bulup hemen randevu oluşturalım",
-      icon: Calendar,
-      prompt: "Merhaba, randevu almak istiyorum.",
-    },
-    {
-      title: "Yarın için uygun saatleri göster",
-      description: "Yarınki boş saat dilimlerini listele",
+      title: "Müsait günleri ve saatleri göster",
+      description: "Takvimdeki boş günleri ve uygun saat dilimlerini listele",
       icon: Clock,
-      prompt: "Yarın için uygun saatleri gösterebilir misin?",
+      prompt: "Firmanın müsait günlerini ve saatlerini listeler misin?",
     },
     {
-      title: "Mevcut randevularımı listele",
-      description: "Aktif ve geçmiş randevu kayıtlarımı incele",
+      title: "Yarın saat 16:00'da randevu al",
+      description: "Yarın öğleden sonra 4 için hızlıca randevu oluştur",
+      icon: Calendar,
+      prompt: "Yarın öğleden sonra 4'te randevu almak istiyorum.",
+    },
+    {
+      title: "Tüm randevularımı takip et",
+      description: "Oluşturduğum ve iptal ettiğim tüm randevuları incele",
       icon: Sparkles,
-      prompt: "Mevcut randevularımı listele.",
+      prompt: "Daha önce oluşturduğum ve iptal ettiğim randevularımı listele.",
     },
     {
       title: "Randevumu iptal etmek istiyorum",
-      description: "Oluşturulmuş randevuyu güvenle iptal et",
+      description: "Onay ekranı ile mevcut randevuyu güvenle iptal et",
       icon: XCircle,
       prompt: "Randevumu iptal etmek istiyorum.",
     },
     {
       title: "Çalışma saatleriniz nedir?",
-      description: "Haftalık çalışma ve mesai saatlerini öğren",
+      description: "Haftalık çalışma günlerini ve mesai saatlerini öğren",
       icon: HelpCircle,
       prompt: "Çalışma saatleriniz ve günleri nedir?",
     },

@@ -237,10 +237,16 @@ export const appointmentApi = {
   },
 
   async create(command: CreateAppointmentCommand): Promise<CreateAppointmentResult> {
-    return request<CreateAppointmentResult>(CORE_API_URL, "/api/appointments", {
+    const res = await request<CreateAppointmentResult>(CORE_API_URL, "/api/appointments", {
       method: "POST",
       body: JSON.stringify(command),
     });
+    if (typeof window !== "undefined" && command.organizationId) {
+      try {
+        localStorage.setItem("appointai_last_booked_org_id", command.organizationId);
+      } catch {}
+    }
+    return res;
   },
 
   async cancel(command: CancelAppointmentCommand): Promise<{ success: boolean; message: string }> {

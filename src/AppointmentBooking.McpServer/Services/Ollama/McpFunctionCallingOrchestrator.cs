@@ -40,7 +40,8 @@ public sealed class McpFunctionCallingOrchestrator : IMcpFunctionCallingOrchestr
             request.OrganizationId,
             request.CustomerId);
 
-        // 2. Prepare Messages
+        // Prepare the conversation supplied to the model. Tool selection is performed by
+        // the model from the advertised schemas, never by matching user-message keywords.
         var messages = new List<OllamaChatMessage>
         {
             new("system", systemPrompt)
@@ -56,7 +57,7 @@ public sealed class McpFunctionCallingOrchestrator : IMcpFunctionCallingOrchestr
 
         messages.Add(new("user", request.Message));
 
-        // 3. Prepare MCP Tools as Ollama Tool Definitions
+        // Prepare MCP tools as Ollama function definitions.
         var mcpTools = McpToolRegistry.GetTools();
         var ollamaTools = mcpTools.Select(t => new OllamaTool(
             Type: "function",
@@ -67,86 +68,129 @@ public sealed class McpFunctionCallingOrchestrator : IMcpFunctionCallingOrchestr
             )
         )).ToList();
 
-        // 4. Send Request to Ollama
-        var chatRequest = new OllamaChatRequest(
-            Model: model,
-            Messages: messages,
-            Tools: ollamaTools,
-            Stream: false,
-            Options: new OllamaOptions(Temperature: 0.1f)
-        );
+        var executedAnyTool = false;
+        string? lastToolName = null;
+        JsonElement? lastToolArguments = null;
+        McpToolResult? lastToolResult = null;
+        string responseModel = model;
 
-        var response = await _ollamaClient.ChatAsync(chatRequest, ct);
-        var assistantMsg = response.Message;
-
-        // 5. Check if Ollama Decided to Call a Tool
-        if (assistantMsg.ToolCalls != null && assistantMsg.ToolCalls.Count > 0)
+        // A tool result must include its name so Ollama can associate it with the
+        // preceding call. Keep chaining bounded: simple availability queries need
+        // one tool call and one final response, not an unbounded reasoning loop.
+        const int maxToolRounds = 2;
+        for (var round = 0; round < maxToolRounds; round++)
         {
-            var toolCall = assistantMsg.ToolCalls[0];
-            var toolName = toolCall.Function.Name;
-            var rawArgs = toolCall.Function.Arguments;
+            var chatRequest = new OllamaChatRequest(
+                Model: model,
+                Messages: messages,
+                Tools: ollamaTools,
+                Stream: false,
+                Options: new OllamaOptions(
+                    Temperature: 0.1f,
+                    NumPredict: _configuration.GetValue<int?>("Ollama:MaxOutputTokens") ?? 256,
+                    Think: _configuration.GetValue<bool?>("Ollama:Think") ?? false));
+            var response = await _ollamaClient.ChatAsync(chatRequest, ct);
+            responseModel = response.Model;
+            var assistantMsg = response.Message;
+            var toolCalls = assistantMsg.ToolCalls;
 
-            _logger.LogInformation("Ollama routed to function: '{ToolName}' with args: {Args}",
-                toolName, rawArgs.ToString());
-
-            // Enrich Arguments with Context (e.g. inject OrganizationId/CustomerId if missing)
-            var enrichedArgs = EnrichArgumentsWithContext(rawArgs, request);
-
-            if (!request.AutoExecuteTools)
+            if (toolCalls is null || toolCalls.Count == 0)
             {
-                // Return tool call proposal directly to client without executing
-                var historyWithoutExec = BuildUpdatedHistory(request.History, request.Message,
-                    $"Fonksiyon çağrısı önerildi: {toolName}");
+                var reply = !string.IsNullOrWhiteSpace(assistantMsg.Content)
+                    ? assistantMsg.Content
+                    : "Talebinizi aldım. Size nasıl yardımcı olabilirim?";
+
+                // Never surface raw JSON/technical field descriptions to the user.
+                // For structured read tools, replace such replies with a short Turkish
+                // summary generated from the actual tool result.
+                if (executedAnyTool &&
+                    lastToolName is not null &&
+                    lastToolResult is not null &&
+                    McpToolResultSummarizer.LooksLikeTechnicalJsonExplanation(reply) &&
+                    McpToolResultSummarizer.TrySummarize(lastToolName, lastToolResult, out var summary))
+                {
+                    reply = summary;
+                }
 
                 return new McpChatClientResponse(
-                    Reply: $"'{toolName}' fonksiyonunun çağrılması planlandı.",
-                    ToolExecuted: false,
-                    ToolName: toolName,
-                    ToolArguments: enrichedArgs,
-                    ToolResult: null,
-                    ModelUsed: response.Model,
-                    UpdatedHistory: historyWithoutExec);
+                    Reply: reply,
+                    ToolExecuted: executedAnyTool,
+                    ToolName: lastToolName,
+                    ToolArguments: lastToolArguments,
+                    ToolResult: lastToolResult,
+                    ModelUsed: responseModel,
+                    UpdatedHistory: BuildUpdatedHistory(request.History, request.Message, reply));
             }
 
-            // Execute the Tool via McpToolRegistry
-            var toolResult = await _toolRegistry.ExecuteToolAsync(toolName, enrichedArgs, ct);
+            messages.Add(new OllamaChatMessage("assistant", assistantMsg.Content, toolCalls));
+            if (toolCalls.Count > 1)
+            {
+                _logger.LogWarning(
+                    "Ollama returned {ToolCount} tool calls in one response; executing only the first to bound work.",
+                    toolCalls.Count);
+            }
 
-            // Synthesize Final User-Friendly Reply using the Tool Result
-            var finalReply = await SynthesizeFinalReplyAsync(
-                messages,
-                toolName,
-                enrichedArgs,
-                toolResult,
-                response.Model,
-                ct);
+            foreach (var toolCall in toolCalls.Take(1))
+            {
+                var toolName = toolCall.Function.Name;
+                var enrichedArgs = EnrichArgumentsWithContext(toolCall.Function.Arguments, request);
+                lastToolName = toolName;
+                lastToolArguments = enrichedArgs;
 
-            var updatedHistory = BuildUpdatedHistory(request.History, request.Message, finalReply);
+                _logger.LogInformation("Ollama selected MCP tool '{ToolName}' with args: {Args}",
+                    toolName, enrichedArgs);
 
-            return new McpChatClientResponse(
-                Reply: finalReply,
-                ToolExecuted: true,
-                ToolName: toolName,
-                ToolArguments: enrichedArgs,
-                ToolResult: toolResult,
-                ModelUsed: response.Model,
-                UpdatedHistory: updatedHistory);
+                if (McpToolRegistry.RequiresConfirmation(toolName) && request.RequireConfirmationForWrites)
+                {
+                    var proposal = string.IsNullOrWhiteSpace(assistantMsg.Content)
+                        ? $"Bu işlemi gerçekleştirmemi onaylıyor musunuz? ({toolName})"
+                        : assistantMsg.Content;
+                    return new McpChatClientResponse(
+                        Reply: proposal,
+                        ToolExecuted: false,
+                        ToolName: toolName,
+                        ToolArguments: enrichedArgs,
+                        ToolResult: null,
+                        ModelUsed: responseModel,
+                        UpdatedHistory: BuildUpdatedHistory(request.History, request.Message, proposal));
+                }
+
+                if (!request.AutoExecuteTools)
+                {
+                    var proposal = $"'{toolName}' aracı çağrılmak üzere seçildi.";
+                    return new McpChatClientResponse(
+                        Reply: proposal,
+                        ToolExecuted: false,
+                        ToolName: toolName,
+                        ToolArguments: enrichedArgs,
+                        ToolResult: null,
+                        ModelUsed: responseModel,
+                        UpdatedHistory: BuildUpdatedHistory(request.History, request.Message, proposal));
+                }
+
+                var toolResult = await _toolRegistry.ExecuteToolAsync(toolName, enrichedArgs, ct);
+                executedAnyTool = true;
+                lastToolResult = toolResult;
+
+                // Feed the tool result back to the model so it can decide whether to
+                // answer directly or continue with another tool (for example, after
+                // get_available_slots the model may select create_appointment).
+                messages.Add(new OllamaChatMessage(
+                    "tool",
+                    toolResult.Content.FirstOrDefault()?.Text ?? string.Empty,
+                    ToolName: toolName));
+            }
         }
 
-        // 6. Direct Text Response (No tool call needed)
-        var replyText = !string.IsNullOrWhiteSpace(assistantMsg.Content)
-            ? assistantMsg.Content
-            : "Talebinizi aldım. Size nasıl yardımcı olabilirim?";
-
-        var directHistory = BuildUpdatedHistory(request.History, request.Message, replyText);
-
+        const string exhaustedReply = "İsteğinizi işlerken araç çağrısı sınırına ulaşıldı. Lütfen isteğinizi daraltarak tekrar deneyin.";
         return new McpChatClientResponse(
-            Reply: replyText,
-            ToolExecuted: false,
-            ToolName: null,
-            ToolArguments: null,
-            ToolResult: null,
-            ModelUsed: response.Model,
-            UpdatedHistory: directHistory);
+            Reply: exhaustedReply,
+            ToolExecuted: executedAnyTool,
+            ToolName: lastToolName,
+            ToolArguments: lastToolArguments,
+            ToolResult: lastToolResult,
+            ModelUsed: responseModel,
+            UpdatedHistory: BuildUpdatedHistory(request.History, request.Message, exhaustedReply));
     }
 
     private JsonElement EnrichArgumentsWithContext(JsonElement rawArgs, McpChatClientRequest request)
@@ -190,64 +234,6 @@ public sealed class McpFunctionCallingOrchestrator : IMcpFunctionCallingOrchestr
         var json = JsonSerializer.Serialize(dict);
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.Clone();
-    }
-
-    private async Task<string> SynthesizeFinalReplyAsync(
-        List<OllamaChatMessage> conversationMessages,
-        string toolName,
-        JsonElement arguments,
-        McpToolResult toolResult,
-        string model,
-        CancellationToken ct)
-    {
-        var toolOutputText = toolResult.Content.FirstOrDefault()?.Text ?? string.Empty;
-
-        // If tool resulted in error, provide a clear friendly error message
-        if (toolResult.IsError)
-        {
-            return $"İşlem gerçekleştirilemedi: {toolOutputText}. Lütfen parametreleri kontrol edip tekrar deneyiniz.";
-        }
-
-        try
-        {
-            // Ask Ollama to summarize the tool execution result for the user in natural Turkish
-            var synthesisMessages = new List<OllamaChatMessage>(conversationMessages)
-            {
-                new("assistant", $"[Function Call: {toolName}({arguments})]")
-            };
-
-            var promptText = $"""
-            Aşağıdaki '{toolName}' fonksiyon çağrısı başarıyla tamamlandı. 
-            Fonksiyon Çıktısı (JSON):
-            {toolOutputText}
-
-            Talimat: Bu sonucu kullanıcıya son derece nazik, anlaşılır, şık ve Türkçe olarak özetle.
-            Gereksiz teknik detayları veya JSON formatını kullanıcıya yansıtma.
-            """;
-
-            synthesisMessages.Add(new("user", promptText));
-
-            var synthesisRequest = new OllamaChatRequest(
-                Model: model,
-                Messages: synthesisMessages,
-                Tools: null,
-                Stream: false,
-                Options: new OllamaOptions(Temperature: 0.2f)
-            );
-
-            var response = await _ollamaClient.ChatAsync(synthesisRequest, ct);
-            if (!string.IsNullOrWhiteSpace(response.Message.Content))
-            {
-                return response.Message.Content;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to synthesize final reply with LLM. Falling back to direct tool output.");
-        }
-
-        // Fallback if synthesis failed or returned empty
-        return $"İşlem tamamlandı:\n{toolOutputText}";
     }
 
     private static List<McpChatMessageHistoryItem> BuildUpdatedHistory(

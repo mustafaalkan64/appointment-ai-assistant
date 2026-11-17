@@ -15,6 +15,14 @@ namespace AppointmentBooking.McpServer.Services;
 
 public sealed class McpToolRegistry
 {
+    private static readonly HashSet<string> WriteToolNames = new(StringComparer.Ordinal)
+    {
+        "create_appointment",
+        "cancel_appointment",
+        "confirm_appointment",
+        "cancel_queue_request"
+    };
+
     private readonly ISender _sender;
     private readonly ILogger<McpToolRegistry> _logger;
 
@@ -30,7 +38,7 @@ public sealed class McpToolRegistry
         {
             new(
                 "get_organization_info",
-                "Retrieves organization details, working hours, and settings by its unique slug or GUID.",
+                "Kurum adı, adresi, iletişim bilgileri, saat dilimi, çalışma saatleri ve randevu ayarlarını getirir. Kullanıcı kurum bilgisi, konum, iletişim veya çalışma saatlerini sorarsa kullan. organization_id ya da slug değerlerinden en az biri gerekir; aktif kurum bağlamı varsa organization_id kullan.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["slug"] = new("string", "The URL-friendly slug of the organization (e.g. 'kadikoy-poliklinigi')."),
@@ -40,7 +48,7 @@ public sealed class McpToolRegistry
 
             new(
                 "get_available_dates",
-                "Returns distinct calendar dates that have open appointment slots within a date range.",
+                "Belirtilen kurum ve tarih aralığında en az bir boş randevu slotu bulunan takvim günlerini döndürür. Kullanıcı uygun günleri soruyor ancak saatleri istemiyorsa bunu tercih et; saat/slot seçimi için get_available_slots kullan. Tarihleri YYYY-MM-DD biçiminde ver.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -51,7 +59,7 @@ public sealed class McpToolRegistry
 
             new(
                 "get_available_slots",
-                "Retrieves open appointment slots for a specific date or date range.",
+                "Belirtilen kurum ve tarih aralığındaki gerçekten boş randevu slotlarını, slot_id değerleriyle birlikte döndürür. Kullanıcı müsait saat sorarsa veya randevu almak istiyorsa önce bunu çağır; randevu oluştururken sonuçtaki slot_id'yi kullan ve slot_id uydurma. Tarihleri YYYY-MM-DD biçiminde ver. Tarih belirtilmediyse bağlamdaki bugünü esas alıp makul, kısa bir aralık sorgula.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -62,7 +70,7 @@ public sealed class McpToolRegistry
 
             new(
                 "create_appointment",
-                "Books an appointment slot for a customer with distributed lock and idempotency protection.",
+                "Seçilen boş slotta müşteri adına randevu oluşturur; bu işlem kalıcı bir kayıt oluşturur. Yalnızca kullanıcı açıkça randevu oluşturmayı/onaylamayı istediğinde çağır; önce get_available_slots ile gerçek bir slot_id edin ve kullanıcıya seçimini netleştir. Gerekli kimlikler aktif bağlamdan sağlanabilir. Her mantıksal rezervasyon için yeniden denemelerde de aynı benzersiz idempotency_key değerini kullan. Uygun slot bulunamazsa bu araçla deneme yapma.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -75,7 +83,7 @@ public sealed class McpToolRegistry
 
             new(
                 "get_appointment",
-                "Gets detailed information about an appointment by its ID.",
+                "Tek bir randevunun durum ve zaman dahil ayrıntılarını appointment_id ile getirir. Kullanıcı belirli bir randevunun ayrıntılarını istediğinde kullan.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -85,7 +93,7 @@ public sealed class McpToolRegistry
 
             new(
                 "get_customer_appointments",
-                "Lists all appointments (upcoming and past) for a specific customer.",
+                "Müşterinin yaklaşan ve geçmiş randevularını listeler. Kullanıcı kendi randevularını listeler veya iptal/onay için hangisini kastettiği belirsiz olduğunda önce bu aracı çağır. Aktif müşteri bağlamı varsa customer_id değerini kullan.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID (optional)."),
@@ -95,7 +103,7 @@ public sealed class McpToolRegistry
 
             new(
                 "cancel_appointment",
-                "Cancels an existing appointment, releases the slot, and advances waiting queue.",
+                "Bir randevuyu iptal eder, slotu serbest bırakır ve bekleme kuyruğunu ilerletir. Yalnızca kullanıcının açık iptal talebinde çağır; hangi randevunun iptal edileceği kesin değilse önce get_customer_appointments ile listele ve netleştir. appointment_id verilmezse araç yalnızca tam olarak bir aktif randevu varsa kendisi seçebilir. Her mantıksal iptal için sabit, benzersiz idempotency_key kullan.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -108,7 +116,7 @@ public sealed class McpToolRegistry
 
             new(
                 "confirm_appointment",
-                "Confirms a pending appointment for a customer.",
+                "Beklemedeki belirli bir randevuyu onaylar. Yalnızca kullanıcı açıkça onay istediğinde çağır; appointment_id ve müşteri/kurum bağlamı gerekir. Randevu oluşturmak için değil, mevcut bekleyen randevuyu onaylamak için kullan.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -120,7 +128,7 @@ public sealed class McpToolRegistry
 
             new(
                 "get_queue_status",
-                "Checks the position, status, and reservation expiration of a waiting queue entry.",
+                "Belirli bir dolu slot için müşterinin bekleme sırası konumunu, durumunu ve varsa rezervasyon süresi sonunu sorgular. Kullanıcı bekleme listesi/sırası durumunu sorarsa kullan; slot_id gerekir.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -132,7 +140,7 @@ public sealed class McpToolRegistry
 
             new(
                 "cancel_queue_request",
-                "Removes a customer from the waiting queue.",
+                "Müşterinin belirli slot için bekleme kuyruğu talebini siler. Bu işlem kalıcıdır; yalnızca kullanıcının açıkça kuyruktan çıkma talebinde çağır. organization_id ve slot_id gerekir; müşteri veya talep kimliğini bağlamdan sağla.",
                 new McpToolInputSchema("object", new Dictionary<string, McpToolPropertyDefinition>
                 {
                     ["organization_id"] = new("string", "The organization GUID."),
@@ -143,6 +151,8 @@ public sealed class McpToolRegistry
             )
         };
     }
+
+    public static bool RequiresConfirmation(string toolName) => WriteToolNames.Contains(toolName);
 
     public async Task<McpToolResult> ExecuteToolAsync(string toolName, JsonElement? arguments, CancellationToken ct)
     {
@@ -179,9 +189,9 @@ public sealed class McpToolRegistry
                 case "get_available_dates":
                 {
                     var orgId = Guid.Parse(args.GetProperty("organization_id").GetString()!);
-                    DateOnly startDate = args.TryGetProperty("start_date", out var s) && DateOnly.TryParse(s.GetString(), out var sd)
+                    DateOnly startDate = args.TryGetProperty("start_date", out var s) && TryParseDateOnly(s.GetString(), out var sd)
                         ? sd : DateOnly.FromDateTime(DateTime.UtcNow);
-                    DateOnly endDate = args.TryGetProperty("end_date", out var e) && DateOnly.TryParse(e.GetString(), out var ed)
+                    DateOnly endDate = args.TryGetProperty("end_date", out var e) && TryParseDateOnly(e.GetString(), out var ed)
                         ? ed : startDate.AddDays(14);
 
                     var slotsResponse = await _sender.Send(new GetAvailableSlotsQuery(orgId, null, startDate, endDate), ct);
@@ -197,9 +207,9 @@ public sealed class McpToolRegistry
                 case "get_available_slots":
                 {
                     var orgId = Guid.Parse(args.GetProperty("organization_id").GetString()!);
-                    DateOnly startDate = args.TryGetProperty("start_date", out var s) && DateOnly.TryParse(s.GetString(), out var sd)
+                    DateOnly startDate = args.TryGetProperty("start_date", out var s) && TryParseDateOnly(s.GetString(), out var sd)
                         ? sd : DateOnly.FromDateTime(DateTime.UtcNow);
-                    DateOnly endDate = args.TryGetProperty("end_date", out var e) && DateOnly.TryParse(e.GetString(), out var ed)
+                    DateOnly endDate = args.TryGetProperty("end_date", out var e) && TryParseDateOnly(e.GetString(), out var ed)
                         ? ed : startDate.AddDays(7);
 
                     var slotsResponse = await _sender.Send(new GetAvailableSlotsQuery(orgId, null, startDate, endDate), ct);
@@ -337,9 +347,25 @@ public sealed class McpToolRegistry
         }
     }
 
+    private static bool TryParseDateOnly(string? value, out DateOnly date)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            if (DateOnly.TryParse(value, out date))
+                return true;
+            if (DateTimeOffset.TryParse(value, out var dto))
+            {
+                date = DateOnly.FromDateTime(dto.DateTime);
+                return true;
+            }
+        }
+        date = default;
+        return false;
+    }
+
     private static McpToolResult FormatSuccess(object data)
     {
-        var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(data);
         return new McpToolResult(new List<McpContentItem>
         {
             new("text", json)

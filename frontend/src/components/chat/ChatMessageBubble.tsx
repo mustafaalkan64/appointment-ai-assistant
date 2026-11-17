@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, Bot, User, Copy, Check } from "lucide-react";
+import { Bot, User, Copy, Check } from "lucide-react";
 import { ChatMessage } from "@/types";
 import { AvailableSlotCards } from "./AvailableSlotCards";
 import { AppointmentConfirmationCard } from "./AppointmentConfirmationCard";
@@ -41,18 +41,40 @@ export function ChatMessageBubble({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Helper to extract HH:MM times from assistant text if slots are mentioned in freeform text
+  // Helper to extract slot start times (HH:MM) from assistant slot listing text
   const extractTimes = (text: string): string[] => {
+    // Prefer extracting start time from bulleted range lines: "- 09:00 - 09:30" or "• 19.11.2026 09:00 - 09:30"
+    const rangeRegex = /(?:^|\n)\s*[-•]\s*(?:\d{2}\.\d{2}\.\d{4}\s+)?([01]?\d|2[0-3]):[0-5]\d(?=\s*-\s*(?:[01]?\d|2[0-3]):[0-5]\d)/g;
+    const startTimes: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = rangeRegex.exec(text)) !== null) {
+      const fullTimeMatch = match[0].match(/([01]?\d|2[0-3]):[0-5]\d/);
+      if (fullTimeMatch) {
+        startTimes.push(fullTimeMatch[0]);
+      }
+    }
+    if (startTimes.length > 0) {
+      return Array.from(new Set(startTimes)).slice(0, 24);
+    }
+
     const timeRegex = /\b([01]?\d|2[0-3]):[0-5]\d\b/g;
     const matches = text.match(timeRegex);
     if (!matches) return [];
-    // Deduplicate
-    return Array.from(new Set(matches)).slice(0, 8);
+    return Array.from(new Set(matches)).slice(0, 24);
   };
 
-  const parsedTimes = !isUser && (!message.slotsData || message.slotsData.length === 0)
-    ? extractTimes(message.content)
-    : [];
+  const lowerContent = message.content.toLowerCase();
+  const isSlotListMessage =
+    !isUser &&
+    !message.requiresConfirmation &&
+    (lowerContent.includes("müsait randevu saatleri") ||
+      lowerContent.includes("müsait olan saatler") ||
+      lowerContent.includes("uygun saat"));
+
+  const parsedTimes =
+    isSlotListMessage && (!message.slotsData || message.slotsData.length === 0)
+      ? extractTimes(message.content)
+      : [];
 
   if (isUser) {
     return (
@@ -71,6 +93,14 @@ export function ChatMessageBubble({
       </div>
     );
   }
+
+  const isCancelConfirmation =
+    message.cardType === "appointment_cancelled" ||
+    (message.requiresConfirmation && message.proposedAction === "cancel_appointment");
+
+  const isBookingConfirmation =
+    !isCancelConfirmation &&
+    (message.requiresConfirmation || message.cardType === "appointment_confirmation");
 
   // Assistant Message
   return (
@@ -100,13 +130,13 @@ export function ChatMessageBubble({
         </div>
 
         {/* 1. Interactive Slot Cards */}
-        {(message.slotsData && message.slotsData.length > 0) ? (
+        {message.slotsData && message.slotsData.length > 0 ? (
           <AvailableSlotCards
             slots={message.slotsData}
             onSelectSlot={onSelectSlot}
             disabled={isLoadingAction}
           />
-        ) : parsedTimes.length > 0 && message.content.toLowerCase().includes("uygun") ? (
+        ) : parsedTimes.length > 0 ? (
           <AvailableSlotCards
             rawTimes={parsedTimes}
             onSelectSlot={onSelectSlot}
@@ -114,8 +144,8 @@ export function ChatMessageBubble({
           />
         ) : null}
 
-        {/* 2. Confirmation Card */}
-        {(message.requiresConfirmation || message.cardType === "appointment_confirmation") && (
+        {/* 2. Confirmation Card (Booking / Confirming) */}
+        {isBookingConfirmation && (
           <AppointmentConfirmationCard
             organizationName={message.confirmationData?.organizationName || organizationName}
             date={message.confirmationData?.date || "-"}
@@ -137,10 +167,17 @@ export function ChatMessageBubble({
           />
         )}
 
-        {/* 4. Cancellation Card */}
-        {message.cardType === "appointment_cancelled" && (
+        {/* 4. Cancellation Confirmation Card */}
+        {isCancelConfirmation && (
           <AppointmentCancellationCard
-            organizationName={organizationName}
+            appointmentNumber={message.confirmationData?.appointmentNumber}
+            organizationName={message.confirmationData?.organizationName || organizationName}
+            dateTimeDisplay={
+              message.confirmationData?.localDisplay ||
+              (message.confirmationData?.date && message.confirmationData?.time
+                ? `${message.confirmationData.date} ${message.confirmationData.time}`
+                : undefined)
+            }
             onConfirmCancel={onConfirmCancellation}
             onKeepAppointment={onKeepAppointment}
             isLoading={isLoadingAction}

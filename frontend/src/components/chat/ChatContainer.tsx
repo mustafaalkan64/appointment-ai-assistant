@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/providers/providers";
-import { chatApi, organizationApi } from "@/lib/api/client";
+import { appointmentApi, chatApi, organizationApi } from "@/lib/api/client";
 import { ChatMessage, AgentResponseDto, Organization } from "@/types";
 import { ChatHeader } from "./ChatHeader";
 import { ChatSidebar, ConversationMeta } from "./ChatSidebar";
@@ -30,49 +30,86 @@ interface ChatContainerProps {
 
 export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
   const { session } = useAuth();
-  const [activeOrg, setActiveOrg] = useState<Organization | null>(null);
+  const queryClient = useQueryClient();
+  const customerId = session?.id || "c63fa787-d893-4b6d-8372-f1abe6fe97aa";
+
+  const [manualOrgId, setManualOrgId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState("Asistan yanıt hazırlıyor...");
-  const [conversations, setConversations] = useState<ConversationMeta[]>([]);
+  const [conversations, setConversations] = useState<ConversationMeta[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("appointai_chat_conversations");
+      return saved ? (JSON.parse(saved) as ConversationMeta[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch all organizations to match slug or select default
+  // Fetch all organizations
   const { data: orgs } = useQuery({
     queryKey: ["chat-organizations"],
     queryFn: () => organizationApi.getAll(),
   });
 
-  useEffect(() => {
-    if (!orgs || orgs.length === 0) return;
-    if (initialOrgSlug) {
-      const found = orgs.find((o) => o.slug === initialOrgSlug);
-      if (found) setActiveOrg(found);
-    } else if (!activeOrg) {
-      // Default to first active org (e.g. Concurrency Clinic)
-      setActiveOrg(orgs[0]);
-    }
-  }, [orgs, initialOrgSlug, activeOrg]);
+  // Fetch customer's appointments to resolve the organization of the most recently booked appointment
+  const { data: customerAppointments } = useQuery({
+    queryKey: ["customer-appointments", customerId],
+    queryFn: () => appointmentApi.getCustomerAppointments(customerId),
+    enabled: !!customerId,
+  });
 
-  // Load conversation history from local storage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("appointai_chat_conversations");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setConversations(parsed);
-      }
-    } catch {
-      // Ignore
+  const activeOrg: Organization | null = React.useMemo(() => {
+    if (!orgs || orgs.length === 0) return null;
+
+    // 1. User manually switched organization in current session
+    if (manualOrgId) {
+      const manualFound = orgs.find((o) => o.id === manualOrgId);
+      if (manualFound) return manualFound;
     }
-  }, []);
+
+    // 2. Explicit slug from URL (/app/chat/[organizationSlug])
+    if (initialOrgSlug) {
+      const slugFound = orgs.find((o) => o.slug === initialOrgSlug);
+      if (slugFound) return slugFound;
+    }
+
+    // 3. Organization of the customer's most recently booked appointment
+    if (customerAppointments && customerAppointments.length > 0) {
+      const sorted = [...customerAppointments].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      const lastBookedOrgId = sorted[0]?.organizationId;
+      if (lastBookedOrgId) {
+        const lastBookedOrg = orgs.find((o) => o.id === lastBookedOrgId);
+        if (lastBookedOrg) return lastBookedOrg;
+      }
+    }
+
+    // 4. Fallback to last booked org stored in localStorage if appointments are still loading
+    if (typeof window !== "undefined") {
+      try {
+        const savedOrgId = localStorage.getItem("appointai_last_booked_org_id");
+        if (savedOrgId) {
+          const savedOrg = orgs.find((o) => o.id === savedOrgId);
+          if (savedOrg) return savedOrg;
+        }
+      } catch {}
+    }
+
+    // 5. Fallback to first active organization
+    return orgs[0];
+  }, [orgs, manualOrgId, initialOrgSlug, customerAppointments]);
 
   // Save conversations to localStorage
   const saveConversationMeta = (convId: string, firstMsg: string) => {
     const newMeta: ConversationMeta = {
       id: convId,
       title: firstMsg.slice(0, 30) + (firstMsg.length > 30 ? "..." : ""),
+      organizationId: activeOrg?.id,
       organizationName: activeOrg?.name,
       organizationSlug: activeOrg?.slug,
       updatedAt: "Şimdi",
@@ -104,11 +141,54 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
     toast.info("Yeni sohbet başlatıldı.");
   };
 
+  const handleSelectOrganization = (org: Organization) => {
+    setManualOrgId(org.id);
+    setConversationId(null);
+    setMessages([]);
+    try {
+      localStorage.setItem("appointai_last_booked_org_id", org.id);
+    } catch {}
+    toast.info(`Aktif kurum: ${org.name}`);
+  };
+
+  const handleSelectConversation = async (id: string) => {
+    setConversationId(id);
+    const meta = conversations.find((c) => c.id === id);
+    if (meta?.organizationId) {
+      setManualOrgId(meta.organizationId);
+    } else if (meta?.organizationSlug && orgs) {
+      const matched = orgs.find((o) => o.slug === meta.organizationSlug);
+      if (matched) setManualOrgId(matched.id);
+    }
+
+    try {
+      const history = await chatApi.getConversation(id);
+      if (history?.organizationId) {
+        setManualOrgId(history.organizationId);
+      }
+      if (history?.messages) {
+        setMessages(
+          history.messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            createdAt: new Date(m.createdAt).toLocaleTimeString("tr-TR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          }))
+        );
+      }
+      toast.info("Görüşme yüklendi.");
+    } catch {
+      toast.info("Görüşme seçildi.");
+    }
+  };
+
   const handleSendMessage = async (userText: string) => {
     if (!userText.trim()) return;
 
     const orgId = activeOrg?.id || "5f8a475a-bcc0-4241-8955-c3d13acee320";
-    const customerId = session?.id || "c63fa787-d893-4b6d-8372-f1abe6fe97aa";
 
     // 1. Add user message locally
     const userMsg: ChatMessage = {
@@ -123,12 +203,12 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
 
     // Dynamic status indicators
     const lower = userText.toLowerCase();
-    if (lower.includes("saat") || lower.includes("uygun") || lower.includes("yarın") || lower.includes("müsait")) {
-      setStatusText("Uygun saatler kontrol ediliyor...");
+    if (lower.includes("saat") || lower.includes("uygun") || lower.includes("yarın") || lower.includes("müsait") || lower.includes("gün")) {
+      setStatusText("Uygun gün ve saatler kontrol ediliyor...");
     } else if (lower.includes("onay") || lower.includes("evet")) {
-      setStatusText("Randevu kaydediliyor ve onaylanıyor...");
+      setStatusText("İşleminiz onaylanıyor...");
     } else if (lower.includes("iptal")) {
-      setStatusText("İptal koşulları kontrol ediliyor...");
+      setStatusText("Randevu kayıtları kontrol ediliyor...");
     } else {
       setStatusText("Asistan yanıt hazırlıyor...");
     }
@@ -153,31 +233,63 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
       let confirmationData: ChatMessage["confirmationData"] = undefined;
 
       const respContent = response.content || "";
+      const combinedText = `${response.summary || ""} ${respContent}`;
+      const parsed = parseSlotDisplay(combinedText);
+      const matchNumber = combinedText.match(/APT-[\w-]+/i);
+
+      const isCancelledCompletion =
+        (!response.requiresConfirmation && response.proposedAction === "cancel_appointment") ||
+        respContent.includes("başarıyla iptal edildi") ||
+        (response.summary || "").toLowerCase().includes("iptal edildi");
+
       const isConfirmedSuccess =
-        response.isCompleted ||
-        respContent.includes("başarıyla oluşturuldu") ||
-        respContent.includes("onaylandı") ||
-        respContent.includes("Randevunuz oluşturuldu");
+        !isCancelledCompletion &&
+        !response.requiresConfirmation &&
+        (response.isCompleted ||
+          respContent.includes("başarıyla oluşturuldu") ||
+          respContent.includes("onaylandı ve oluşturuldu") ||
+          respContent.includes("Randevunuz oluşturuldu"));
+
+      if (isConfirmedSuccess) {
+        try {
+          localStorage.setItem("appointai_last_booked_org_id", orgId);
+        } catch {}
+      }
+
+      if (response.isCompleted || isConfirmedSuccess || isCancelledCompletion) {
+        queryClient.invalidateQueries();
+      }
 
       if (isConfirmedSuccess) {
         cardType = "appointment_success";
-        // Extract appointment number if present, e.g. APT-...
-        const matchNumber = respContent.match(/APT-[\w-]+/i);
         successData = {
-          appointmentNumber: matchNumber ? matchNumber[0] : "APT-" + Math.floor(100000 + Math.random() * 900000),
-          localDisplay: "Onaylandı",
+          appointmentNumber: matchNumber ? matchNumber[0] : "APT-ONAYLANDI",
+          localDisplay: parsed.localDisplay || "Onaylandı",
         };
       } else if (response.requiresConfirmation) {
-        cardType = "appointment_confirmation";
-        const parsed = parseSlotDisplay(response.summary || respContent);
-        confirmationData = {
-          organizationId: orgId,
-          organizationName: activeOrg?.name,
-          date: parsed.date,
-          time: parsed.time,
-          localDisplay: parsed.localDisplay,
-          customerName: session?.fullName,
-        };
+        if (response.proposedAction === "cancel_appointment") {
+          cardType = "appointment_cancelled";
+          confirmationData = {
+            organizationId: orgId,
+            organizationName: activeOrg?.name,
+            appointmentNumber: matchNumber ? matchNumber[0] : undefined,
+            date: parsed.date,
+            time: parsed.time,
+            localDisplay: parsed.localDisplay,
+            customerName: session?.fullName,
+          };
+        } else {
+          cardType = "appointment_confirmation";
+          confirmationData = {
+            organizationId: orgId,
+            organizationName: activeOrg?.name,
+            appointmentNumber: matchNumber ? matchNumber[0] : undefined,
+            date: parsed.date,
+            time: parsed.time,
+            localDisplay: parsed.localDisplay,
+            customerName: session?.fullName,
+          };
+        }
       }
 
       const assistantMsg: ChatMessage = {
@@ -240,13 +352,13 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
         <ChatSidebar
           conversations={conversations}
           activeConversationId={conversationId}
-          onSelectConversation={(id) => {
-            setConversationId(id);
-            toast.info("Görüşme seçildi.");
-          }}
+          onSelectConversation={handleSelectConversation}
           onNewConversation={handleStartNewConversation}
           currentOrgName={activeOrg?.name}
           currentOrgSlug={activeOrg?.slug}
+          organizations={orgs}
+          currentOrgId={activeOrg?.id}
+          onSelectOrganization={handleSelectOrganization}
         />
       </div>
 
@@ -294,10 +406,11 @@ export function ChatContainer({ initialOrgSlug }: ChatContainerProps) {
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
           suggestedPills={[
-            "Yarın için müsait saatler",
-            "Mevcut randevularım",
-            "Randevumu onayla",
-            "Randevumu iptal et",
+            "Müsait günler ve saatler",
+            "Yarın saat 16'da randevu almak istiyorum",
+            "Çalışma saatleriniz nedir?",
+            "Oluşturduğum ve iptal ettiğim randevular",
+            "Randevumu iptal etmek istiyorum",
           ]}
           onSelectPill={(pill) => handleSendMessage(pill)}
         />

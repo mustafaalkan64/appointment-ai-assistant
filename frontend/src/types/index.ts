@@ -209,7 +209,7 @@ export interface AgentResponseDto {
   role: "user" | "assistant" | "system";
   content: string;
   requiresConfirmation: boolean;
-  proposedAction?: "create_appointment" | "cancel_appointment" | "join_queue" | null;
+  proposedAction?: "create_appointment" | "cancel_appointment" | "confirm_appointment" | "join_queue" | null;
   summary?: string | null;
   isCompleted: boolean;
 }
@@ -239,6 +239,7 @@ export interface ChatMessage {
     organizationId: string;
     organizationName?: string;
     slotId?: string;
+    appointmentNumber?: string;
     localDisplay?: string;
     date?: string;
     time?: string;
